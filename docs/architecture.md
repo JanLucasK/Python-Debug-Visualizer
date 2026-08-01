@@ -215,3 +215,37 @@ Some visualizations are *reductions* rather than views. A histogram needs bin
 counts, and computing those in the debuggee is what keeps five million points
 from crossing the wire to draw sixty bars — so the selected kind travels to
 Python, and adapters that care about it branch on `options["viz"]`.
+
+## Security posture
+
+Worth stating plainly, since this thing evaluates code inside a process you are
+debugging.
+
+**What it executes.** Exactly two things: the runtime bootstrap, and
+`_pdv.capture(<your expression>)`. The expression is whatever you typed into the
+pane, evaluated in the frame you selected — the same power the Debug Console
+already gives you, and no more. Nothing is executed on the extension's own
+initiative, and the extension requires a trusted workspace
+(`untrustedWorkspaces.supported: false`), so opening a repository does not run
+anything.
+
+**What it listens on.** One TCP socket, bound to `127.0.0.1` on an
+operating-system-assigned port, opened lazily and only while a debug session is
+active. Every payload must present a single-use 128-bit token issued for one
+specific capture; an unrecognised token is discarded rather than handed to
+whoever is waiting. The webview never opens a socket at all — under Remote-SSH
+its `localhost` is a different machine.
+
+**What it writes.** Nothing, unless the loopback socket fails and the file
+transport takes over. Those files live in the debuggee's temp directory, are
+deleted as soon as they are read, and any left behind by a killed window are
+swept after an hour.
+
+**What leaves the machine.** Nothing. There is no telemetry, no network access,
+and the webview's content-security policy permits no outbound connections —
+scripts run only under a per-render nonce.
+
+**Supply chain.** Third-party GitHub Actions are pinned to commit SHAs rather
+than tags, because a tag can be moved to point at different code and the release
+workflow holds the publishing tokens. Workflows are read-only by default; only
+the publishing job may write, and only on a tag.
