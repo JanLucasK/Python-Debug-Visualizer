@@ -108,7 +108,15 @@ export function LinePlot({
   const applied = useRef<Range | null>(null);
   applied.current = descriptor.window ? [descriptor.window.from, descriptor.window.to] : null;
 
-  /** True while uPlot is building or receiving data, rather than reacting to a drag. */
+  /**
+   * Whether the plot is still building.
+   *
+   * Only guards the very first frames; the reliable signal is `setSelect`,
+   * which uPlot fires with a non-empty selection exclusively in response to a
+   * drag. Watching `setScale` instead is what broke this: uPlot fires it while
+   * constructing itself and, verifiably, once more *after* the `ready` hook,
+   * so no flag cleared in `ready` can tell that apart from a user zooming out.
+   */
   const programmatic = useRef(true);
 
   /**
@@ -150,6 +158,7 @@ export function LinePlot({
           const request = zoomRequest(range, applied.current, programmatic.current);
           if (request !== undefined) zoomHandler.current?.(request);
         },
+        hasWindow: () => applied.current !== null,
       });
     };
 
@@ -339,14 +348,16 @@ interface PlotSettings {
   logY: boolean;
   /** Fired once the plot has finished building itself. */
   onReady(): void;
-  onZoom(range: [number, number] | null): void;
+  onZoom(range: Range | null): void;
+  /** Whether this capture already covers only part of the value. */
+  hasWindow(): boolean;
 }
 
 function createPlot(
   container: HTMLDivElement,
   series: Series[],
   height: number,
-  { mode, timeAxis, logX, logY, onReady, onZoom }: PlotSettings,
+  { mode, timeAxis, logX, logY, onReady, onZoom, hasWindow }: PlotSettings,
 ): uPlot {
   const theme = readTheme();
   const width = container.clientWidth || 600;
@@ -377,24 +388,20 @@ function createPlot(
     },
     hooks: {
       ready: [() => onReady()],
-      setScale: [
-        (self: uPlot, key: string) => {
-          if (key !== "x") return;
-          const scale = self.scales.x;
-          const min = scale?.min;
-          const max = scale?.max;
-          if (min === undefined || max === undefined) return;
-
-          // Covering everything the plot holds means the user zoomed back out.
-          // The caller decides whether that is a change worth acting on -- for a
-          // capture that is already a window, "everything it holds" is the
-          // window, not the whole value.
-          const full = self.data[0];
-          const wholeRange =
-            full === undefined ||
-            full.length === 0 ||
-            (min <= (full[0] as number) && max >= (full[full.length - 1] as number));
-          onZoom(wholeRange ? null : [min, max]);
+      /**
+       * A completed drag selection, and nothing else.
+       *
+       * uPlot also calls this while redrawing, to reapply the selection
+       * overlay -- but with an empty selection, since a drag-zoom clears it
+       * once applied. Requiring a non-zero width is therefore enough to tell a
+       * user gesture from the plot maintaining itself, which `setScale` could
+       * not: it fires during construction and again after `ready`.
+       */
+      setSelect: [
+        (self: uPlot) => {
+          const { left, width } = self.select;
+          if (width <= 0) return;
+          onZoom([self.posToVal(left, "x"), self.posToVal(left + width, "x")]);
         },
       ],
     },
@@ -424,5 +431,14 @@ function createPlot(
     ],
   };
 
-  return new uPlot(options, toPlotData(series), container);
+  const plot = new uPlot(options, toPlotData(series), container);
+
+  // uPlot's own double-click resets its scales, but a windowed capture only
+  // *holds* the window -- so resetting it lands right back where it started.
+  // Asking for the whole value again has to be said out loud.
+  container.addEventListener("dblclick", () => {
+    if (hasWindow()) onZoom(null);
+  });
+
+  return plot;
 }

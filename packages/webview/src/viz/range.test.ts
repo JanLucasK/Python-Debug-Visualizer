@@ -37,8 +37,8 @@ describe("zoomRequest", () => {
   const window: Range = [500, 1500];
 
   it("ignores everything while the plot is building", () => {
-    // uPlot moves the scale as it constructs itself and again when it is fed
-    // new data. Neither is a request.
+    // uPlot moves the view as it constructs itself and again when it is fed new
+    // data. Neither is a request.
     expect(zoomRequest([0, 10], null, true)).toBeUndefined();
     expect(zoomRequest(null, window, true)).toBeUndefined();
   });
@@ -51,7 +51,7 @@ describe("zoomRequest", () => {
     expect(zoomRequest([600, 700], window, false)).toEqual([600, 700]);
   });
 
-  it("ignores the scale that follows a refetch", () => {
+  it("ignores a request for the window already displayed", () => {
     // The regression this exists for. After capturing for [500, 1500] the data
     // *is* that window, so the plot's natural extent equals it -- and asking
     // for it again would loop forever.
@@ -63,8 +63,8 @@ describe("zoomRequest", () => {
   });
 
   it("forwards zooming out of a window", () => {
-    // Double-click resets uPlot to the extent of its data; with a window
-    // applied that is a real request to see everything again.
+    // Double-click on a windowed capture is an explicit request for the whole
+    // value: uPlot's own reset would only return to the window it holds.
     expect(zoomRequest(null, window, false)).toBeNull();
   });
 });

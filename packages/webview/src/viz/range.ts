@@ -1,16 +1,20 @@
 /**
- * Deciding whether a scale change is worth acting on.
+ * Deciding whether a view change is worth re-capturing for.
  *
  * Zoom is a loop: the user drags, the runtime re-captures inside the range, and
- * the new data arrives. uPlot reports a scale change at every step of that --
- * while building itself, after new data, and when the user drags -- and only
- * the last one is a request.
+ * the new data arrives. After a refetch the data *is* the window, so the plot's
+ * natural full extent equals the range that was asked for -- and asking for it
+ * again would loop forever.
  *
- * The trap is that after a refetch the data *is* the window, so the plot's
- * natural full-extent scale looks identical to a user zooming to the window
- * they are already in. Forwarding it asks for the same range again; reading it
- * as "covers everything, so zoomed out" asks for the whole value. Either way
- * the view snaps back and the zoom undoes itself, which is what it did.
+ * An earlier version watched uPlot's `setScale`, which cannot distinguish a
+ * gesture from the plot maintaining itself: uPlot fires it while constructing,
+ * and once more *after* the `ready` hook, so no flag cleared in `ready` can
+ * separate them. That read as "covers everything, therefore zoomed out" and
+ * requested the whole value back, undoing every zoom a moment after it landed.
+ *
+ * The trigger is now `setSelect` with a non-empty selection, which only a drag
+ * produces. This module remains the guard against re-requesting a window that
+ * is already displayed.
  */
 
 export type Range = [number, number];
