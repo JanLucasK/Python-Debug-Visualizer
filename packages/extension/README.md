@@ -90,7 +90,7 @@ built for it — the extension host and the debuggee are the same machine there,
 which is why the socket goes between *those two* and never from the webview —
 but that is reasoning, not a measurement. Reports from remote setups are
 especially welcome on
-[GitHub](https://github.com/JanLucasK/python-debug-visualizer/issues).
+[GitHub](https://github.com/JanLucasK/Python-Debug-Visualizer/issues).
 
 ## License
 

@@ -1,6 +1,6 @@
 # python-debug-visualizer-runtime
 
-The in-process half of the [Python Debug Visualizer](https://github.com/JanLucasK/python-debug-visualizer)
+The in-process half of the [Python Debug Visualizer](https://github.com/JanLucasK/Python-Debug-Visualizer)
 VS Code extension. It turns Python values into a compact binary description the
 extension can plot.
 
