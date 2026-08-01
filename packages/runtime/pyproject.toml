@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "python-debug-visualizer-runtime"
+version = "0.0.1"
+description = "In-process value extraction for the Python Debug Visualizer VS Code extension"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Jan Lucas Knezar" }]
+keywords = ["debugging", "visualization", "numpy", "pandas", "vscode"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Debuggers",
+]
+# Intentionally empty. The runtime must be importable inside *any* debuggee,
+# including ones with no third-party packages at all. Every integration
+# (numpy, pandas, torch, ...) is discovered from sys.modules at capture time.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "numpy>=1.21"]
+
+[project.urls]
+Homepage = "https://github.com/JanLucasK/python-debug-visualizer"
+Issues = "https://github.com/JanLucasK/python-debug-visualizer/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/_pdv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

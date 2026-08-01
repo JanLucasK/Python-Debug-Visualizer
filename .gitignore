@@ -1,0 +1,21 @@
+# Node
+node_modules/
+dist/
+out/
+*.vsix
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+
+# Editors / OS
+.DS_Store
+.vscode-test/

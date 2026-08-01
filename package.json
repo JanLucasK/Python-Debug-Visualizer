@@ -1,0 +1,25 @@
+{
+  "name": "python-debug-visualizer-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo for the Python Debug Visualizer VS Code extension",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "watch": "pnpm -r --parallel watch",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:py": "python -m pytest packages/runtime/tests -q",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "package": "pnpm build && pnpm --filter @python-debug-visualizer/extension run package"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.7.2"
+  }
+}
