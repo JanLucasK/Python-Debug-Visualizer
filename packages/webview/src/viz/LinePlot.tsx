@@ -31,21 +31,28 @@ export function LinePlot({ descriptor, decoded, height = 240, mode = "line", ref
   const container = useRef<HTMLDivElement>(null);
   const plot = useRef<uPlot | null>(null);
 
-  const series = useMemo(() => {
+  const { shown: series, hidden } = useMemo(() => {
     const current = collectSeries(descriptor, decoded);
-    if (!reference) return current;
+    if (!reference) return seriesOverflow(current);
 
     // The pinned capture is drawn on the same axes so the two can be read
     // against each other directly. It keeps its counterpart's colour and is
     // distinguished by being dashed and thinner, which leaves the colour free
     // to mean "which series" rather than "which snapshot".
-    const past = collectSeries(reference.descriptor, reference.decoded).map((entry, index) => ({
-      ...entry,
-      label: `${entry.label} (pinned)`,
-      colorIndex: index,
-      dimmed: true,
-    }));
-    return [...current, ...past];
+    // Half the slots each, so pinning never pushes current series off the plot.
+    const room = Math.floor(MAX_SERIES / 2);
+    const past = collectSeries(reference.descriptor, reference.decoded)
+      .slice(0, room)
+      .map((entry, index) => ({
+        ...entry,
+        label: `${entry.label} (pinned)`,
+        colorIndex: index,
+        dimmed: true,
+      }));
+    return {
+      shown: [...current.slice(0, room), ...past],
+      hidden: Math.max(0, current.length - room),
+    };
   }, [descriptor, decoded, reference]);
 
   /**
@@ -122,7 +129,18 @@ export function LinePlot({ descriptor, decoded, height = 240, mode = "line", ref
     return <div className="notice warning">Nothing numeric to plot in this value.</div>;
   }
 
-  return <div ref={container} />;
+  return (
+    <>
+      <div ref={container} />
+      {hidden > 0 && (
+        <p className="notice warning">
+          {hidden} further series {hidden === 1 ? "is" : "are"} not drawn: the palette has{" "}
+          {MAX_SERIES} distinguishable colours. Select the columns you want, for example{" "}
+          <code>df[["a", "b"]]</code>.
+        </p>
+      )}
+    </>
+  );
 }
 
 interface Series {
@@ -150,7 +168,55 @@ function collectSeries(descriptor: Descriptor, decoded: DecodedCapture): Series[
     });
   }
 
-  return series.slice(0, MAX_SERIES);
+  // A raw matrix arrives as one flat channel, because that is what the heatmap
+  // wants. Drawing it as one line per column is the other reasonable reading of
+  // the same bytes -- `np.column_stack([a, b])` is a natural way to ask for two
+  // lines -- so the columns are sliced out here rather than sent twice.
+  if (series.length === 0) {
+    series.push(...columnsOfMatrix(descriptor, decoded));
+  }
+
+  return series;
+}
+
+function columnsOfMatrix(descriptor: Descriptor, decoded: DecodedCapture): Series[] {
+  const shape = descriptor.shape;
+  if (descriptor.kind !== "ndarray" || !shape || shape.length !== 2) return [];
+
+  const flat = decoded.channels.get("value");
+  if (!flat) return [];
+
+  const [rows, cols] = shape as [number, number];
+  const series: Series[] = [];
+
+  for (let column = 0; column < Math.min(cols, MAX_SERIES); column++) {
+    const values = new Float64Array(rows);
+    for (let row = 0; row < rows; row++) {
+      values[row] = flat.values[row * cols + column] as number;
+    }
+    series.push({ label: `col ${column}`, values, x: positions(rows) });
+  }
+
+  return series;
+}
+
+function positions(length: number): Float64Array {
+  const values = new Float64Array(length);
+  for (let i = 0; i < length; i++) values[i] = i;
+  return values;
+}
+
+/**
+ * Series the palette cannot distinguish.
+ *
+ * The categorical palette has eight slots and is never cycled, because a ninth
+ * generated hue would fail the contrast and colour-vision checks the eight
+ * passed. So beyond eight, series are dropped — and dropping them quietly would
+ * leave someone comparing four columns of a twelve-column frame while believing
+ * they were looking at all of it.
+ */
+function seriesOverflow(series: Series[]): { shown: Series[]; hidden: number } {
+  return { shown: series.slice(0, MAX_SERIES), hidden: Math.max(0, series.length - MAX_SERIES) };
 }
 
 function labelFor(descriptor: Descriptor, channelName: string): string {

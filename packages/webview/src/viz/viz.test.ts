@@ -168,3 +168,63 @@ describe("colormaps", () => {
     expect(sampleColormap("viridis", 5)).toBe(sampleColormap("viridis", 1));
   });
 });
+
+describe("frames and matrices are told apart", () => {
+  /**
+   * The bug this pins down: a DataFrame and a 2-D array both report
+   * [rows, columns]. Deciding from shape alone offered the frame a heatmap and
+   * withheld the line plot, so plotting a DataFrame -- the whole reason the
+   * pandas adapter exists -- silently produced a table instead.
+   */
+  const frame = () =>
+    descriptor({
+      kind: "frame",
+      shape: [400, 4],
+      dtype: null,
+      suggestedViz: ["line", "grid"],
+    });
+
+  // Matching what the NumPy adapter actually sends for a 2-D array.
+  const matrix = () =>
+    descriptor({
+      kind: "ndarray",
+      shape: [200, 300],
+      suggestedViz: ["heatmap", "grid", "histogram"],
+    });
+
+  it("offers a line plot for a DataFrame", () => {
+    expect(kinds(availableViz(frame()))).toContain("line");
+    expect(resolveViz(frame(), "auto")?.kind).toBe("line");
+  });
+
+  it("does not offer a heatmap for a DataFrame", () => {
+    // Its columns are unrelated quantities; one colour scale would compare
+    // prices against volumes.
+    expect(kinds(availableViz(frame()))).not.toContain("heatmap");
+  });
+
+  it("offers a heatmap for a raw matrix", () => {
+    expect(kinds(availableViz(matrix()))).toContain("heatmap");
+    expect(resolveViz(matrix(), "auto")?.kind).toBe("heatmap");
+  });
+
+  it("also offers lines for a narrow matrix", () => {
+    // np.column_stack([a, b]) is a natural way to ask for two lines.
+    expect(kinds(availableViz(descriptor({ kind: "ndarray", shape: [500, 2] })))).toContain("line");
+  });
+
+  it("does not offer lines for a wide matrix", () => {
+    expect(kinds(availableViz(matrix()))).not.toContain("line");
+  });
+
+  it("offers a line plot for a dict of arrays", () => {
+    const mapping = descriptor({ kind: "mapping", shape: [100, 2], suggestedViz: ["line"] });
+    expect(resolveViz(mapping, "auto")?.kind).toBe("line");
+  });
+
+  it("offers a line plot for a Series and a plain list", () => {
+    for (const kind of ["series", "sequence", "index"] as const) {
+      expect(kinds(availableViz(descriptor({ kind }))), kind).toContain("line");
+    }
+  });
+});

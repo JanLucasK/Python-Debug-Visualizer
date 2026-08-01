@@ -13,11 +13,14 @@ are inspecting is not a debugging tool.
 from __future__ import annotations
 
 from ..registry import Registry
-from . import builtins_
+from . import builtins_, mapping_
 
 
 def install(registry: Registry) -> None:
     builtins_.install(registry)
+    # Dependency-free, so it registers eagerly like the other built-ins; it
+    # merely uses numpy for speed when the debuggee already has it.
+    mapping_.install(registry)
     registry.register_lazy("numpy", _install_numpy)
     registry.register_lazy("pandas", _install_pandas)
     registry.register_lazy("torch", _install_torch)

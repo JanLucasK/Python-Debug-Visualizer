@@ -83,3 +83,35 @@ export function isOneDimensional(descriptor: Descriptor): boolean {
 export function isTwoDimensional(descriptor: Descriptor): boolean {
   return descriptor.shape !== null && descriptor.shape.length === 2;
 }
+
+/**
+ * Values that are a set of named series sharing one index.
+ *
+ * The distinction cannot be made from shape alone, which is why `kind` exists.
+ * A DataFrame and a 2-D array both report `[rows, columns]`, but one is four
+ * named quantities over time and the other is a matrix — plotting the first as
+ * a heatmap and the second as four lines are both wrong.
+ */
+export function isSeriesLike(descriptor: Descriptor): boolean {
+  return (
+    descriptor.kind === "frame" ||
+    descriptor.kind === "series" ||
+    descriptor.kind === "mapping" ||
+    descriptor.kind === "sequence" ||
+    descriptor.kind === "index"
+  );
+}
+
+/**
+ * A raw array that can be drawn as one line per column.
+ *
+ * `np.column_stack([a, b])` is a natural way to ask for two lines, and without
+ * this it would only ever be a heatmap.
+ */
+export function isNarrowMatrix(descriptor: Descriptor, maxColumns: number): boolean {
+  return (
+    descriptor.kind === "ndarray" &&
+    isTwoDimensional(descriptor) &&
+    (descriptor.shape?.[1] ?? Number.POSITIVE_INFINITY) <= maxColumns
+  );
+}

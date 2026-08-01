@@ -6,25 +6,46 @@
  * later without the registry needing to know it exists.
  */
 
+import { MAX_SERIES } from "../theme";
 import { DataGrid } from "./DataGrid";
 import { Heatmap } from "./Heatmap";
 import { Histogram } from "./Histogram";
 import { ImageView } from "./ImageView";
 import { LinePlot } from "./LinePlot";
 import { ObjectPreview } from "./ObjectPreview";
-import { hasNumericData, isOneDimensional, isTwoDimensional, registerViz } from "./registry";
+import {
+  hasNumericData,
+  isNarrowMatrix,
+  isOneDimensional,
+  isSeriesLike,
+  isTwoDimensional,
+  registerViz,
+} from "./registry";
+
+/**
+ * Values the line and scatter renderers can draw.
+ *
+ * Judged from `kind` rather than shape, because shape alone cannot tell a
+ * DataFrame from a matrix — both report [rows, columns], and one wants lines
+ * where the other wants a heatmap.
+ */
+const plottableAsSeries = (descriptor: Parameters<typeof hasNumericData>[0]) =>
+  hasNumericData(descriptor) &&
+  (isSeriesLike(descriptor) ||
+    (descriptor.kind === "ndarray" &&
+      (isOneDimensional(descriptor) || isNarrowMatrix(descriptor, MAX_SERIES))));
 
 registerViz({
   kind: "line",
   label: "Line",
-  available: (descriptor) => hasNumericData(descriptor) && isOneDimensional(descriptor),
+  available: plottableAsSeries,
   component: ({ descriptor, decoded }) => LinePlot({ descriptor, decoded }),
 });
 
 registerViz({
   kind: "scatter",
   label: "Scatter",
-  available: (descriptor) => hasNumericData(descriptor) && isOneDimensional(descriptor),
+  available: plottableAsSeries,
   component: ({ descriptor, decoded }) => LinePlot({ descriptor, decoded, mode: "scatter" }),
 });
 
@@ -42,7 +63,11 @@ registerViz({
 registerViz({
   kind: "heatmap",
   label: "Heatmap",
-  available: (descriptor) => hasNumericData(descriptor) && isTwoDimensional(descriptor),
+  // Only a raw matrix. A DataFrame is also [rows, columns], but its columns
+  // are unrelated quantities, and colouring them on one scale would compare
+  // prices against volumes.
+  available: (descriptor) =>
+    hasNumericData(descriptor) && descriptor.kind === "ndarray" && isTwoDimensional(descriptor),
   component: Heatmap,
 });
 
