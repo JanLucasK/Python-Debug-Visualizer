@@ -1,0 +1,119 @@
+{
+  "name": "python-debug-visualizer",
+  "displayName": "Python Debug Visualizer",
+  "description": "Plot and inspect NumPy arrays, Pandas DataFrames and tensors live while debugging Python.",
+  "version": "0.0.1",
+  "publisher": "janlucask",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "vscode": "^1.89.0"
+  },
+  "categories": ["Debuggers", "Visualization", "Data Science"],
+  "keywords": ["numpy", "pandas", "plot", "debug", "visualization"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JanLucasK/python-debug-visualizer.git"
+  },
+  "extensionKind": ["workspace"],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Evaluates expressions inside your debug session, which requires a trusted workspace."
+    }
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": ["onDebug"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "pythonDebugVisualizer.open",
+        "title": "Open Visualizer",
+        "category": "Python Debug Visualizer",
+        "icon": "$(graph-line)"
+      },
+      {
+        "command": "pythonDebugVisualizer.visualizeSelection",
+        "title": "Visualize Selection",
+        "category": "Python Debug Visualizer"
+      },
+      {
+        "command": "pythonDebugVisualizer.visualizeVariable",
+        "title": "Visualize",
+        "category": "Python Debug Visualizer"
+      },
+      {
+        "command": "pythonDebugVisualizer.refresh",
+        "title": "Refresh",
+        "category": "Python Debug Visualizer",
+        "icon": "$(refresh)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "pythonDebugVisualizer.visualizeSelection",
+        "key": "ctrl+alt+v",
+        "mac": "cmd+alt+v",
+        "when": "editorHasSelection && debugState == stopped"
+      }
+    ],
+    "menus": {
+      "debug/variables/context": [
+        {
+          "command": "pythonDebugVisualizer.visualizeVariable",
+          "when": "debugType == debugpy || debugType == python",
+          "group": "navigation@10"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "pythonDebugVisualizer.visualizeSelection",
+          "when": "editorHasSelection && debugState == stopped && editorLangId == python",
+          "group": "debug@10"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Python Debug Visualizer",
+      "properties": {
+        "pythonDebugVisualizer.maxPoints": {
+          "type": "number",
+          "default": 20000,
+          "minimum": 100,
+          "description": "Points transferred per series before downsampling. Statistics are always computed over the full value regardless of this setting."
+        },
+        "pythonDebugVisualizer.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-evaluate expressions each time the debugger stops."
+        },
+        "pythonDebugVisualizer.historyDepth": {
+          "type": "number",
+          "default": 20,
+          "minimum": 0,
+          "description": "Number of past captures kept per expression for the history scrubber."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "generate": "node scripts/pack-runtime.mjs",
+    "build": "pnpm generate && node esbuild.mjs",
+    "watch": "pnpm generate && node esbuild.mjs --watch",
+    "typecheck": "pnpm generate && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "package": "vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "@python-debug-visualizer/protocol": "workspace:*",
+    "@python-debug-visualizer/webview": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "@types/vscode": "^1.89.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

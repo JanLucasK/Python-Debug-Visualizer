@@ -79,7 +79,16 @@ export const timeUnitSchema = z.enum(["s", "ms", "us", "ns"]);
 export type TimeUnit = z.infer<typeof timeUnitSchema>;
 
 export const indexInfoSchema = z.object({
-  kind: z.enum(["range", "integer", "float", "datetime", "timedelta", "categorical", "multi", "other"]),
+  kind: z.enum([
+    "range",
+    "integer",
+    "float",
+    "datetime",
+    "timedelta",
+    "categorical",
+    "multi",
+    "other",
+  ]),
   name: z.string().nullable(),
   /** Native dtype string, e.g. "datetime64[ns]". */
   dtype: z.string().nullable(),

@@ -1,0 +1,264 @@
+/*
+ * Theming follows VS Code, which stamps `vscode-light` / `vscode-dark` /
+ * `vscode-high-contrast` onto <body> — that, not prefers-color-scheme, is what
+ * tracks the user's chosen theme, including the many third-party ones.
+ *
+ * The series palette is a fixed eight-slot categorical order, assigned by
+ * position and never cycled. Both columns were checked with the palette
+ * validator against VS Code's default surfaces (#ffffff / #1f1f1f): lightness
+ * band, chroma floor, adjacent-pair CVD separation and normal-vision floor all
+ * pass in both modes. Three light-mode slots (aqua, yellow, magenta) fall below
+ * 3:1 contrast on white, which is why the legend is always visible for more
+ * than one series — identity must never rest on color alone.
+ */
+
+:root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+}
+
+body.vscode-dark,
+body.vscode-high-contrast {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* --- expression bar --- */
+
+.expression-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editor-background);
+}
+
+.expression-bar input {
+  flex: 1;
+  padding: 4px 8px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+}
+
+.expression-bar input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+button {
+  padding: 4px 12px;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+button.secondary {
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+
+button.secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* --- panes --- */
+
+.panes {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pane {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 3px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.pane-expression {
+  flex: 1;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  color: var(--vscode-textPreformat-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pane-body {
+  padding: 8px;
+  min-height: 60px;
+}
+
+.icon-button {
+  padding: 2px 6px;
+  color: var(--vscode-icon-foreground);
+  background: transparent;
+  border-radius: 2px;
+}
+
+.icon-button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+/* --- stats strip --- */
+
+/*
+ * Deliberately always visible, and deliberately describing the whole value
+ * rather than what the plot shows. It is the fastest answer to "is this
+ * plausible?", and half of debugging is that question.
+ */
+.stats-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 4px 8px;
+  font-size: 0.9em;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-descriptionForeground);
+}
+
+.stat {
+  display: inline-flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.stat-label {
+  opacity: 0.75;
+}
+
+.stat-value {
+  color: var(--vscode-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat.alert .stat-value {
+  color: var(--vscode-editorWarning-foreground);
+}
+
+/* --- notices --- */
+
+.notice {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: 2px;
+  font-size: 0.9em;
+  border-left: 2px solid transparent;
+}
+
+.notice.warning {
+  color: var(--vscode-editorWarning-foreground);
+  border-left-color: var(--vscode-editorWarning-foreground);
+  background: var(--vscode-inputValidation-warningBackground, transparent);
+}
+
+.notice.error {
+  color: var(--vscode-errorForeground);
+  border-left-color: var(--vscode-errorForeground);
+  background: var(--vscode-inputValidation-errorBackground, transparent);
+}
+
+.notice pre {
+  margin: 6px 0 0;
+  padding: 6px;
+  overflow-x: auto;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.95em;
+  background: var(--vscode-textCodeBlock-background);
+  border-radius: 2px;
+}
+
+.empty-state {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.6;
+}
+
+.empty-state code {
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-textPreformat-foreground);
+}
+
+.session-banner {
+  padding: 6px 8px;
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-editorWidget-background);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.busy {
+  opacity: 0.55;
+  transition: opacity 120ms ease-out;
+}
+
+/* --- uPlot integration --- */
+
+.uplot {
+  font-family: var(--vscode-font-family) !important;
+}
+
+.u-legend {
+  font-size: 0.9em;
+  color: var(--vscode-foreground);
+}
+
+.u-legend .u-marker {
+  border-width: 2px;
+}

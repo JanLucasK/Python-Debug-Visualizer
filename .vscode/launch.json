@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/extension"],
+      "outFiles": ["${workspaceFolder}/packages/extension/dist/**/*.js"],
+      "preLaunchTask": "build"
+    },
+    {
+      "name": "Debug the demo script",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/demo.py",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

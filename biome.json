@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "files": {
-    "ignore": ["dist/**", "out/**", "node_modules/**", "**/__pycache__/**"]
+    "ignore": [
+      "**/dist/**",
+      "**/out/**",
+      "**/node_modules/**",
+      "**/__pycache__/**",
+      "**/.venv/**",
+      "**/src/generated/**"
+    ]
   },
   "formatter": {
     "enabled": true,

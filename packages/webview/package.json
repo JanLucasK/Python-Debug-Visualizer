@@ -1,0 +1,23 @@
+{
+  "name": "@python-debug-visualizer/webview",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Webview UI for the Python Debug Visualizer",
+  "license": "MIT",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@python-debug-visualizer/protocol": "workspace:*",
+    "preact": "^10.25.4",
+    "uplot": "^1.6.31"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
