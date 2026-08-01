@@ -5,7 +5,12 @@
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/extension"],
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/extension",
+        // Open this repo in the development host too, so examples/demo.py and
+        // its launch configuration are right there to debug against.
+        "${workspaceFolder}"
+      ],
       "outFiles": ["${workspaceFolder}/packages/extension/dist/**/*.js"],
       "preLaunchTask": "build"
     },
