@@ -77,7 +77,14 @@ export class VisualizerPanel implements vscode.Disposable {
     switch (message.type) {
       case "ready":
         this.webviewReady = true;
-        this.post({ type: "init", panes: this.store.list(), session: this.tracker.state });
+        this.post({
+          type: "init",
+          panes: this.store.list(),
+          session: this.tracker.state,
+          historyDepth: vscode.workspace
+            .getConfiguration("pythonDebugVisualizer")
+            .get<number>("historyDepth", 20),
+        });
         await this.refreshAll();
         break;
       case "addPane":

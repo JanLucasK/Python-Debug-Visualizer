@@ -60,7 +60,13 @@ export type WebviewToExtension =
   | { type: "revealTraceback"; paneId: string };
 
 export type ExtensionToWebview =
-  | { type: "init"; panes: PaneSpec[]; session: SessionState }
+  | {
+      type: "init";
+      panes: PaneSpec[];
+      session: SessionState;
+      /** Captures kept per pane for the history scrubber; 0 disables it. */
+      historyDepth: number;
+    }
   | { type: "session"; session: SessionState }
   | { type: "panes"; panes: PaneSpec[] }
   | { type: "capture"; paneId: string; capture: ResolvedCapture }

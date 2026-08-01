@@ -6,21 +6,54 @@ import type {
 } from "@python-debug-visualizer/protocol";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { type DecodedCapture, decodeChannels } from "../decode";
+import type { CaptureSide } from "../diff";
 import { availableViz, resolveViz } from "../viz";
+import { LinePlot } from "../viz/LinePlot";
 import { post } from "../vscode";
+import { HistoryBar } from "./HistoryBar";
 import { StatsStrip } from "./StatsStrip";
 
 interface Props {
   pane: PaneSpec;
   capture: ResolvedCapture | undefined;
+  /** Past captures for this pane, newest first. */
+  history: ResolvedCapture[];
+  /** How far back the shown capture is; 0 is the newest. */
+  offset: number;
+  pinned: ResolvedCapture | undefined;
   error: CaptureError | undefined;
   busy: boolean;
+  onSeek(offset: number): void;
+  onPin(): void;
+  onUnpin(): void;
 }
 
-export function Pane({ pane, capture, error, busy }: Props) {
+export function Pane({
+  pane,
+  capture,
+  history,
+  offset,
+  pinned,
+  error,
+  busy,
+  onSeek,
+  onPin,
+  onUnpin,
+}: Props) {
   const decoded = useMemo(
     () => (capture ? decodeChannels(capture.descriptor, capture.bytes) : undefined),
     [capture],
+  );
+
+  const pinnedSide = useMemo(
+    () =>
+      pinned
+        ? {
+            descriptor: pinned.descriptor,
+            decoded: decodeChannels(pinned.descriptor, pinned.bytes),
+          }
+        : undefined,
+    [pinned],
   );
 
   // After the expression is edited, the plot on screen still describes the old
@@ -68,7 +101,25 @@ export function Pane({ pane, capture, error, busy }: Props) {
         {!error && !capture && <p className="empty-state">Waiting for the debugger to stop…</p>}
 
         {capture && decoded && (
-          <VizBody descriptor={capture.descriptor} decoded={decoded} viz={pane.viz} />
+          <VizBody
+            descriptor={capture.descriptor}
+            decoded={decoded}
+            viz={pane.viz}
+            reference={pinnedSide}
+          />
+        )}
+
+        {capture && decoded && (
+          <HistoryBar
+            history={history}
+            offset={offset}
+            pinned={pinned}
+            viewing={{ descriptor: capture.descriptor, decoded }}
+            pinnedSide={pinnedSide}
+            onSeek={onSeek}
+            onPin={onPin}
+            onUnpin={onUnpin}
+          />
         )}
 
         {/* Warnings from the runtime and from decoding are shown together --
@@ -88,11 +139,31 @@ function VizBody({
   descriptor,
   decoded,
   viz,
-}: { descriptor: Descriptor; decoded: DecodedCapture; viz: PaneSpec["viz"] }) {
+  reference,
+}: {
+  descriptor: Descriptor;
+  decoded: DecodedCapture;
+  viz: PaneSpec["viz"];
+  reference: CaptureSide | undefined;
+}) {
   const definition = resolveViz(descriptor, viz);
   if (!definition) {
     return <pre className="object-preview">{descriptor.preview}</pre>;
   }
+
+  // Only the line and scatter renderers can meaningfully overlay a second
+  // capture. The rest ignore it rather than pretending to compare.
+  if (reference && (definition.kind === "line" || definition.kind === "scatter")) {
+    return (
+      <LinePlot
+        descriptor={descriptor}
+        decoded={decoded}
+        mode={definition.kind === "scatter" ? "scatter" : "line"}
+        reference={reference}
+      />
+    );
+  }
+
   const Component = definition.component;
   return <Component descriptor={descriptor} decoded={decoded} />;
 }

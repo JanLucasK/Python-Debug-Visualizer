@@ -400,3 +400,80 @@ button.secondary:hover {
 .u-legend .u-marker {
   border-width: 2px;
 }
+
+/* --- image --- */
+
+.image-canvas-wrap {
+  overflow: auto;
+  max-height: 480px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 2px;
+  /* A checkerboard, so a transparent PNG does not look like a white one. */
+  background-image: linear-gradient(45deg, var(--vscode-panel-border) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--vscode-panel-border) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--vscode-panel-border) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--vscode-panel-border) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+}
+
+.image-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.image-caption {
+  margin: 4px 0 0;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* --- history and diff --- */
+
+.history-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--vscode-panel-border);
+  font-size: 0.9em;
+}
+
+.history-position {
+  color: var(--vscode-descriptionForeground);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Viewing an older capture is a mode, and a mode you can forget you are in is a
+ * trap: every later reading would be attributed to the current step.
+ */
+.history-past {
+  color: var(--vscode-editorWarning-foreground);
+}
+
+.diff-chip {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-badge-background);
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-alert {
+  color: var(--vscode-editorWarning-foreground);
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon-button:disabled:hover {
+  background: transparent;
+}

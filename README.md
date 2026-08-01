@@ -17,11 +17,14 @@ expression at successive steps, overlaying them, and seeing what moved.
 
 ## What it does
 
-- **Plots** — line, multi-line, scatter, histogram and heatmap, plus a
+- **Plots** — line, multi-line, scatter, histogram, heatmap and image, plus a
   virtualised table. Pick per pane, or let the runtime suggest.
 - **Statistics you can trust** — shape, dtype, min/max/mean/std and NaN/Inf
   counts, always computed over the *whole* value even when the plot is
   downsampled.
+- **Step back and compare** — every pane keeps its recent captures. Scrub
+  through them, pin one, and later steps are drawn against it with a count of
+  what actually moved.
 - **No `pip install` in your project.** The Python runtime is injected into the
   debug session, so it works in virtualenvs, containers and over SSH.
 

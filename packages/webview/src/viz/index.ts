@@ -9,6 +9,7 @@
 import { DataGrid } from "./DataGrid";
 import { Heatmap } from "./Heatmap";
 import { Histogram } from "./Histogram";
+import { ImageView } from "./ImageView";
 import { LinePlot } from "./LinePlot";
 import { ObjectPreview } from "./ObjectPreview";
 import { hasNumericData, isOneDimensional, isTwoDimensional, registerViz } from "./registry";
@@ -43,6 +44,14 @@ registerViz({
   label: "Heatmap",
   available: (descriptor) => hasNumericData(descriptor) && isTwoDimensional(descriptor),
   component: Heatmap,
+});
+
+registerViz({
+  kind: "image",
+  label: "Image",
+  available: (descriptor) =>
+    descriptor.shape?.length === 3 && (descriptor.shape[2] === 3 || descriptor.shape[2] === 4),
+  component: ImageView,
 });
 
 registerViz({

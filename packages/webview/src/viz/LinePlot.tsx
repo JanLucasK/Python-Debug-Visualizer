@@ -11,6 +11,8 @@ interface Props {
   height?: number;
   /** `"scatter"` draws the same series as unconnected points. */
   mode?: "line" | "scatter";
+  /** A pinned earlier capture, drawn underneath for comparison. */
+  reference?: { descriptor: Descriptor; decoded: DecodedCapture };
 }
 
 /**
@@ -25,11 +27,26 @@ interface Props {
  * differ by one series option. Splitting them would mean maintaining the axis,
  * theme, resize and rebuild logic twice.
  */
-export function LinePlot({ descriptor, decoded, height = 240, mode = "line" }: Props) {
+export function LinePlot({ descriptor, decoded, height = 240, mode = "line", reference }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const plot = useRef<uPlot | null>(null);
 
-  const series = useMemo(() => collectSeries(descriptor, decoded), [descriptor, decoded]);
+  const series = useMemo(() => {
+    const current = collectSeries(descriptor, decoded);
+    if (!reference) return current;
+
+    // The pinned capture is drawn on the same axes so the two can be read
+    // against each other directly. It keeps its counterpart's colour and is
+    // distinguished by being dashed and thinner, which leaves the colour free
+    // to mean "which series" rather than "which snapshot".
+    const past = collectSeries(reference.descriptor, reference.decoded).map((entry, index) => ({
+      ...entry,
+      label: `${entry.label} (pinned)`,
+      colorIndex: index,
+      dimmed: true,
+    }));
+    return [...current, ...past];
+  }, [descriptor, decoded, reference]);
 
   /**
    * Identity of the plot's *structure* — series names and point counts.
@@ -112,6 +129,10 @@ interface Series {
   label: string;
   values: Float64Array;
   x: Float64Array;
+  /** Colour slot; lets a pinned series share its counterpart's colour. */
+  colorIndex?: number;
+  /** Drawn dashed and thinner, so the current data stays in front. */
+  dimmed?: boolean;
 }
 
 function collectSeries(descriptor: Descriptor, decoded: DecodedCapture): Series[] {
@@ -139,9 +160,55 @@ function labelFor(descriptor: Descriptor, channelName: string): string {
   return descriptor.dtype ?? "value";
 }
 
+/**
+ * Series laid onto one shared x axis, which is what uPlot requires.
+ *
+ * When a pinned capture is overlaid the two may not share x positions at all —
+ * decimation picks whichever points best preserve each curve. Handing uPlot the
+ * current capture's x array and the pinned capture's values would draw the
+ * pinned data at positions it never had, which is the same misalignment the
+ * diff module exists to avoid, except silent and on screen.
+ *
+ * So the axis becomes the union of both, and each series is projected onto it
+ * with gaps where it has no point. The common case — one capture, one x array —
+ * skips all of this.
+ */
 function toPlotData(series: Series[]): uPlot.AlignedData {
-  const x = series[0]?.x ?? new Float64Array(0);
-  return [x, ...series.map((s) => s.values)] as unknown as uPlot.AlignedData;
+  if (series.length === 0) return [[]] as unknown as uPlot.AlignedData;
+
+  const reference = series[0]?.x as Float64Array;
+  const shared = series.every((s) => s.x === reference || sameAxis(s.x, reference));
+  if (shared) {
+    return [reference, ...series.map((s) => s.values)] as unknown as uPlot.AlignedData;
+  }
+
+  const axis = unionOf(series.map((s) => s.x));
+  return [axis, ...series.map((s) => project(s, axis))] as unknown as uPlot.AlignedData;
+}
+
+function sameAxis(a: Float64Array, b: Float64Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function unionOf(axes: Float64Array[]): Float64Array {
+  const seen = new Set<number>();
+  for (const axis of axes) {
+    for (const value of axis) seen.add(value);
+  }
+  return Float64Array.from(seen).sort();
+}
+
+/** Values at the axis positions this series has, and null where it has none. */
+function project(series: Series, axis: Float64Array): (number | null)[] {
+  const values = new Map<number, number>();
+  for (let i = 0; i < series.x.length && i < series.values.length; i++) {
+    values.set(series.x[i] as number, series.values[i] as number);
+  }
+  return Array.from(axis, (position) => values.get(position) ?? null);
 }
 
 function createPlot(
@@ -180,8 +247,9 @@ function createPlot(
       { label: timeAxis ? "time" : "index" },
       ...series.map((s, index) => ({
         label: s.label,
-        stroke: seriesColor(theme, index),
-        width: 2,
+        stroke: seriesColor(theme, s.colorIndex ?? index),
+        width: s.dimmed ? 1 : 2,
+        ...(s.dimmed ? { dash: [4, 4] } : {}),
         // Gaps are drawn as gaps. A NaN means "no value here", and joining
         // across it would invent a line the data does not support.
         spanGaps: false,

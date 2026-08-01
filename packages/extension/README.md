@@ -19,14 +19,21 @@ a loop animates the plot. Freeze a pane to hold it still for comparison.
 
 ## What you get
 
-- **Line and multi-line plots** with drag-to-zoom, for arrays, Series and
-  columns.
+- **Line, scatter, histogram, heatmap, image and table** views, chosen per pane
+  or suggested automatically from the value.
 - **A statistics strip** showing shape, dtype, min, max, mean, std and NaN/Inf
   counts — always computed over the *whole* value, even when the plot is
   downsampled.
+- **Step back and compare.** Each pane keeps its recent captures. Scrub through
+  them, pin one, and later steps are drawn against it as a dashed line with a
+  count of how many points actually moved and by how much.
 - **Honest downsampling.** Large arrays are reduced before transfer, and the
   pane says so. When a series contains NaN, downsampling switches to a method
   that keeps the gaps visible instead of quietly closing them.
+
+Works with NumPy arrays, Pandas DataFrames, Series and indexes, PyTorch and
+TensorFlow tensors, and plain lists. Anything else is described — type, shape
+and repr — rather than refused.
 
 ## No installation in your project
 
@@ -50,9 +57,9 @@ that ships with the official Python extension.
 
 ## Status
 
-Early development. Line plots, statistics and NumPy support work today.
-Histograms, heatmaps, grids, Pandas and PyTorch support, and step-to-step diffing
-are in progress. Bug reports and ideas are welcome on
+Early development, but the core works: all the views above, the library
+adapters, and step-to-step comparison. Still to come are a binary transport for
+very large arrays and a multi-pane layout. Bug reports and ideas are welcome on
 [GitHub](https://github.com/JanLucasK/python-debug-visualizer/issues).
 
 ## License

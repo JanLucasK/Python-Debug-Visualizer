@@ -19,9 +19,14 @@ The second breakpoint, at the end of `main`, has the pandas side:
     prices[["close", "sma20"]]   two columns overlaid on a time axis
     prices["volume"]             switch this one to Histogram
     prices.index                 the index on its own
+    picture                      an H x W x 3 array, shown as an image
 
 `prices` also carries a non-numeric column, which the tool reports rather than
 quietly dropping.
+
+To try the comparison feature, plot `smoothed` at the first breakpoint, press
+**pin**, then step a few times. The pinned curve stays on the plot as a dashed
+line and the chip reports how many points moved and by how much.
 """
 
 from __future__ import annotations
@@ -102,10 +107,22 @@ def main() -> None:
 
     prices = make_prices()  # DataFrame with a DatetimeIndex, or None without pandas
 
+    # H x W x 3, so it renders as a picture rather than as a heatmap.
+    gradient = np.linspace(0, 1, 128)
+    picture = np.stack(
+        [
+            np.tile(gradient, (96, 1)),
+            np.tile(gradient[::-1], (96, 1)),
+            np.tile(np.linspace(0, 1, 96)[:, None], (1, 128)),
+        ],
+        axis=-1,
+    )
+
     print("signal", signal.shape, "smoothed", smoothed.shape)
     print("field", field.shape, "integers", integers.shape)
     print("booleans", booleans.sum(), "plain_list", len(plain_list))
-    print("prices", None if prices is None else prices.shape)  # <-- second breakpoint here
+    print("prices", None if prices is None else prices.shape, "picture", picture.shape)
+    # <-- second breakpoint here
 
 
 if __name__ == "__main__":

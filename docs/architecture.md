@@ -122,6 +122,31 @@ enforced by tests rather than by convention:
 The corresponding anti-pattern is real: another extension in this space silently
 coerces NaN and Inf to zero before plotting.
 
+## Comparing captures
+
+History lives in the webview rather than the extension host. It already receives
+every capture, so keeping the last *N* there costs one array and no protocol
+surface at all; the tradeoff is that history does not survive a webview reload,
+which is a fair price for not inventing a second store.
+
+The part that needs care is alignment. Two captures of the same expression at
+different steps may have been decimated differently — LTTB picks whichever
+points best preserve *that* curve — so element 500 of one and element 500 of the
+other are usually not the same element of the underlying array. Subtracting them
+by position yields a confident, entirely fictional delta.
+
+Comparison therefore runs on x positions, which is the reason the runtime sends
+them explicitly whenever decimation occurred. Points present on only one side
+are counted as unmatched rather than compared against nothing, and a NaN on
+either side produces a NaN delta instead of a change of zero — a gap is not a
+measurement.
+
+The same problem shows up in rendering. uPlot requires one shared x array for
+all series, so overlaying a pinned capture builds the union of both axes and
+projects each series onto it with gaps where it has no point. Handing it the
+current x array and the pinned values would reproduce exactly the misalignment
+the diff avoids, except silently and on screen.
+
 ## Transports
 
 Bulk bytes reach the extension host by one of three routes, chosen by size and
@@ -152,7 +177,7 @@ wrong is worse.
 | M0 | Monorepo, protocol, runtime, injection | done |
 | M1 | Bootstrapper, evaluator, inline transport, numpy 1-D → line | done |
 | M2 | pandas / torch / tf adapters, remaining visualizations | done |
-| M3 | Snapshot, diff, history scrubber | next |
+| M3 | Snapshot, diff, history scrubber | done |
 | M4 | Socket transport, zoom-triggered refetch | |
 | M5 | Multi-pane, remote hardening, publish | |
 

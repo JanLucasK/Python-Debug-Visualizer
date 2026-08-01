@@ -153,17 +153,49 @@ function collectTable(descriptor: Descriptor, decoded: DecodedCapture): Table | 
 
   const index = decoded.channels.get("x")?.values;
   const rows = Math.max(...columns.map((column) => column.values.length));
+  const label = rowLabeller(descriptor, index);
 
   return {
     rows,
     columns,
     hiddenColumns: series.length - shown.length,
-    // With decimation the rows are a subset, so the labels are the real
-    // positions rather than 0..n-1 -- otherwise the table would quietly
-    // renumber the data.
-    rowLabel: (row) => String(index ? (index[row] ?? row) : row),
+    rowLabel: label,
     valueAt: (row, column) => column.values[row],
   };
+}
+
+/**
+ * How to label a row.
+ *
+ * With decimation the rows are a subset, so labels are the real index values
+ * rather than 0..n-1 — otherwise the table would quietly renumber the data. A
+ * datetime index is rendered as a date, because a column of epoch milliseconds
+ * is technically correct and completely unreadable.
+ */
+function rowLabeller(
+  descriptor: Descriptor,
+  index: Float64Array | undefined,
+): (row: number) => string {
+  if (!index) return (row) => String(row);
+
+  if (descriptor.index?.kind === "datetime" && descriptor.index.timeUnit === "ms") {
+    return (row) => {
+      const stamp = index[row];
+      if (stamp === undefined || !Number.isFinite(stamp)) return String(row);
+      return formatTimestamp(stamp);
+    };
+  }
+
+  return (row) => String(index[row] ?? row);
+}
+
+function formatTimestamp(milliseconds: number): string {
+  const when = new Date(milliseconds);
+  const date = when.toISOString().slice(0, 10);
+  const time = when.toISOString().slice(11, 19);
+  // Midnight almost always means a date-only index, where a column of
+  // "00:00:00" is pure noise.
+  return time === "00:00:00" ? date : `${date} ${time}`;
 }
 
 function formatCell(value: number | undefined): string {

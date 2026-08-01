@@ -179,3 +179,63 @@ def test_big_endian_array_is_converted(np):
     values = np.array([1.0, 2.0, 3.0], dtype=">f8")
     document, payload = decode_capture(values)
     assert read_channel(document, payload, "y") == [1.0, 2.0, 3.0]
+
+
+def test_rgb_array_becomes_an_image(np):
+    picture = np.zeros((4, 6, 3), dtype=np.uint8)
+    picture[0, 0] = [255, 128, 64]
+
+    document, payload = decode_capture(picture)
+
+    assert document["descriptor"]["suggestedViz"][0] == "image"
+    assert document["descriptor"]["shape"] == [4, 6, 3]
+    assert channel(document, "pixel")["dtype"] == "u8"
+    assert list(payload[:3]) == [255, 128, 64]
+
+
+def test_rgba_array_keeps_its_alpha(np):
+    picture = np.zeros((2, 2, 4), dtype=np.uint8)
+    picture[0, 0] = [1, 2, 3, 200]
+
+    document, payload = decode_capture(picture)
+    assert document["descriptor"]["shape"] == [2, 2, 4]
+    assert payload[3] == 200
+
+
+def test_float_image_uses_the_zero_to_one_convention(np):
+    """Every imaging library in Python reads floats as 0-1.
+
+    Rescaling from the observed range instead would make a deliberately dark
+    image look correctly exposed, hiding exactly the bug someone opened the
+    debugger to find.
+    """
+    picture = np.zeros((2, 2, 3), dtype=np.float64)
+    picture[0, 0] = [0.0, 0.5, 1.0]
+
+    document, payload = decode_capture(picture)
+    assert list(payload[:3]) == [0, 127, 255]
+    assert document["warnings"] == []
+
+
+def test_out_of_range_float_image_is_clipped_and_reported(np):
+    picture = np.full((2, 2, 3), 4.0)
+    document, payload = decode_capture(picture)
+
+    assert all(byte == 255 for byte in payload[:12])
+    assert "clipped" in " ".join(document["warnings"])
+
+
+def test_large_image_is_strided_and_says_so(np):
+    document, _ = decode_capture(np.zeros((4000, 4000, 3), dtype=np.uint8), maxPixels=250_000)
+    rows, cols, depth = document["descriptor"]["shape"]
+
+    assert rows * cols <= 250_000
+    assert depth == 3
+    assert document["descriptor"]["truncated"] is True
+    assert document["warnings"]
+
+
+def test_3d_array_that_is_not_an_image_still_explains_itself(np):
+    document, _ = decode_capture(np.zeros((5, 5, 7)))
+    assert document["descriptor"]["channels"] == []
+    assert "Slice" in " ".join(document["warnings"])

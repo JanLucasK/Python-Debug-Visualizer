@@ -82,12 +82,14 @@ class NumpyAdapter(Adapter):
             return _build_1d(np, arr, wire_dtype, cast_to, time_unit, options, warnings)
         if arr.ndim == 2:
             return _build_2d(np, arr, wire_dtype, cast_to, options, warnings)
+        if arr.ndim == 3 and arr.shape[2] in (3, 4):
+            return _build_image(np, arr, options, warnings)
         return _describe_only(
             np,
             arr,
             warnings=[
-                "{}-dimensional arrays are not plotted yet. Slice down to 1-D or 2-D, "
-                "for example x[0] or x[:, :, 0].".format(arr.ndim)
+                "{}-dimensional arrays of shape {} are not plotted. Slice down to 1-D or 2-D, "
+                "for example x[0] or x[:, :, 0].".format(arr.ndim, tuple(int(d) for d in arr.shape))
             ],
             suggested=["tree"],
         )
@@ -461,6 +463,75 @@ def _auto_bin_count(np: Any, values: Any) -> int:
         count = int(math.ceil(math.log2(n))) + 1
 
     return max(MIN_BINS, min(count, MAX_BINS))
+
+
+#: Pixels transferred for an image before striding. Larger than the 2-D cell cap
+#: because three or four bytes per pixel still fits comfortably.
+DEFAULT_MAX_PIXELS = 2048 * 2048
+
+
+def _build_image(np: Any, arr: Any, options: Dict[str, Any], warnings: List[str]) -> Capture:
+    """An H×W×3 or H×W×4 array as a picture.
+
+    Channel values are normalised to bytes following the convention every
+    imaging library in Python shares: integer arrays are already 0-255, float
+    arrays are 0-1. Guessing from the observed range instead would make an image
+    that happens to be dark look correctly exposed, which is precisely the bug
+    someone would be opening the debugger to find.
+    """
+    rows, cols, channels = (int(d) for d in arr.shape)
+    max_pixels = int(options.get("maxPixels") or DEFAULT_MAX_PIXELS)
+
+    view = arr
+    truncated = False
+    if rows * cols > max_pixels:
+        step = max(1, int(math.ceil(((rows * cols) / max_pixels) ** 0.5)))
+        view = arr[::step, ::step]
+        truncated = True
+        warnings.append(
+            "Showing every {}. pixel ({}x{} of {}x{}).".format(
+                step, view.shape[0], view.shape[1], rows, cols
+            )
+        )
+
+    if view.dtype.kind == "f":
+        low, high = float(np.nanmin(view)), float(np.nanmax(view))
+        if low < -0.01 or high > 1.01:
+            warnings.append(
+                "Float images are read as 0-1; values here run {:.3g} to {:.3g} and are "
+                "clipped.".format(low, high)
+            )
+        as_bytes = np.clip(np.nan_to_num(view, nan=0.0) * 255.0, 0, 255).astype(np.uint8)
+    elif view.dtype == np.uint8:
+        as_bytes = view
+    else:
+        as_bytes = np.clip(view, 0, 255).astype(np.uint8)
+
+    builder = PayloadBuilder()
+    builder.add(
+        "pixel",
+        "value",
+        "u8",
+        np.ascontiguousarray(as_bytes).tobytes(),
+        int(as_bytes.size),
+        numeric_stats(np, arr),
+    )
+
+    descriptor = Descriptor(
+        kind="ndarray",
+        python_type=qualified_type(arr),
+        preview=preview(arr),
+        # The transferred shape, not the original: the renderer lays pixels out
+        # from this, and reporting the original would tear the image.
+        shape=[int(view.shape[0]), int(view.shape[1]), channels],
+        dtype=str(arr.dtype),
+        nbytes=int(arr.nbytes),
+        stats=numeric_stats(np, arr),
+        channels=builder.channels,
+        truncated=truncated,
+        suggested_viz=["image", "histogram"],
+    )
+    return Capture(descriptor=descriptor, payload=builder.build(), warnings=warnings)
 
 
 def _build_numpy_scalar(np: Any, value: Any) -> Capture:
