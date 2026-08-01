@@ -3,8 +3,11 @@
 Plot and inspect NumPy arrays, Pandas DataFrames and tensors **while you are
 stopped in the debugger**. Type an expression, see the data.
 
-> **Status: early development.** The runtime and wire protocol work and are
-> tested; the extension UI is being built. Not yet on the Marketplace.
+> **Status: early development, and usable.** Everything below works and is
+> tested. Not yet on the Marketplace — build a VSIX with `pnpm package`.
+>
+> One claim is reasoned rather than measured: it has not been run against a real
+> Remote-SSH or dev-container setup. See [docs/architecture.md](docs/architecture.md).
 
 ## Why
 
@@ -25,6 +28,8 @@ expression at successive steps, overlaying them, and seeing what moved.
 - **Step back and compare** — every pane keeps its recent captures. Scrub
   through them, pin one, and later steps are drawn against it with a count of
   what actually moved.
+- **Zoom that adds detail** — the runtime re-captures inside the visible range
+  rather than showing you fewer of the same points.
 - **No `pip install` in your project.** The Python runtime is injected into the
   debug session, so it works in virtualenvs, containers and over SSH.
 

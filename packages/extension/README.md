@@ -30,6 +30,12 @@ a loop animates the plot. Freeze a pane to hold it still for comparison.
 - **Honest downsampling.** Large arrays are reduced before transfer, and the
   pane says so. When a series contains NaN, downsampling switches to a method
   that keeps the gaps visible instead of quietly closing them.
+- **Zoom that adds detail.** Drag-select a range and the runtime re-captures
+  inside it, spending the whole point budget on what you are looking at. The
+  statistics keep describing the complete value, with the window's own numbers
+  beside them.
+- **Any expression as the x axis**, so you can plot one quantity against another
+  rather than against its index.
 
 Works with NumPy arrays, Pandas DataFrames, Series and indexes, PyTorch and
 TensorFlow tensors, and plain lists. Anything else is described — type, shape
@@ -50,6 +56,24 @@ anything on disk.
 | `pythonDebugVisualizer.autoRefresh` | true | Re-evaluate expressions each time the debugger stops. |
 | `pythonDebugVisualizer.historyDepth` | 20 | Past captures kept per expression. |
 
+Bin count, point budget, log scales, colormap and the x axis are set per pane,
+in the row under its header — they belong to one question rather than to the
+workspace.
+
+## Plotting several things together
+
+Each expression is one pane, so combining values means making the expression
+produce them:
+
+```python
+{"raw": noisy, "smoothed": smoothed}   # a dict, no library needed
+prices[["close", "sma20"]]             # DataFrame columns
+np.column_stack([a, b])                # a narrow array
+```
+
+You can also **pin** a capture and keep stepping: later values are drawn against
+the pinned one, with a count of how many points actually moved.
+
 ## Requirements
 
 VS Code 1.89 or newer, and a Python debug session using `debugpy` — the debugger
@@ -57,9 +81,15 @@ that ships with the official Python extension.
 
 ## Status
 
-Early development, but the core works: all the views above, the library
-adapters, and step-to-step comparison. Still to come are a binary transport for
-very large arrays and a multi-pane layout. Bug reports and ideas are welcome on
+Early development, but the core works: every view above, the library adapters,
+step-to-step comparison, zoom-to-refine, and a binary side channel for arrays
+too large to send inline.
+
+Not yet verified against a real Remote-SSH or dev-container setup. The design is
+built for it — the extension host and the debuggee are the same machine there,
+which is why the socket goes between *those two* and never from the webview —
+but that is reasoning, not a measurement. Reports from remote setups are
+especially welcome on
 [GitHub](https://github.com/JanLucasK/python-debug-visualizer/issues).
 
 ## License
