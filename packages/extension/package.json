@@ -3,7 +3,7 @@
   "displayName": "Python Debug Visualizer",
   "description": "Plot and inspect NumPy arrays, Pandas DataFrames and tensors live while debugging Python.",
   "version": "0.1.0",
-  "publisher": "janlucask",
+  "publisher": "jlk-tools",
   "license": "MIT",
   "engines": {
     "vscode": "^1.89.0"
