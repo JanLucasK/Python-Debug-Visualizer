@@ -1,7 +1,12 @@
-import type { CaptureError, PaneSpec, ResolvedCapture } from "@python-debug-visualizer/protocol";
+import type {
+  CaptureError,
+  Descriptor,
+  PaneSpec,
+  ResolvedCapture,
+} from "@python-debug-visualizer/protocol";
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { decodeChannels } from "../decode";
-import { LinePlot } from "../viz/LinePlot";
+import { type DecodedCapture, decodeChannels } from "../decode";
+import { availableViz, resolveViz } from "../viz";
 import { post } from "../vscode";
 import { StatsStrip } from "./StatsStrip";
 
@@ -28,6 +33,7 @@ export function Pane({ pane, capture, error, busy }: Props) {
     <section className="pane">
       <header className="pane-header">
         <ExpressionInput pane={pane} />
+        {capture && <VizSelector pane={pane} descriptor={capture.descriptor} />}
         <button
           type="button"
           className="icon-button"
@@ -61,12 +67,8 @@ export function Pane({ pane, capture, error, busy }: Props) {
 
         {!error && !capture && <p className="empty-state">Waiting for the debugger to stop…</p>}
 
-        {capture && decoded && capture.descriptor.channels.length > 0 && (
-          <LinePlot descriptor={capture.descriptor} decoded={decoded} />
-        )}
-
-        {capture && capture.descriptor.channels.length === 0 && (
-          <pre className="pane-preview">{capture.descriptor.preview}</pre>
+        {capture && decoded && (
+          <VizBody descriptor={capture.descriptor} decoded={decoded} viz={pane.viz} />
         )}
 
         {/* Warnings from the runtime and from decoding are shown together --
@@ -78,6 +80,54 @@ export function Pane({ pane, capture, error, busy }: Props) {
         ))}
       </div>
     </section>
+  );
+}
+
+/** Renders whichever visualization the descriptor and the user's choice select. */
+function VizBody({
+  descriptor,
+  decoded,
+  viz,
+}: { descriptor: Descriptor; decoded: DecodedCapture; viz: PaneSpec["viz"] }) {
+  const definition = resolveViz(descriptor, viz);
+  if (!definition) {
+    return <pre className="object-preview">{descriptor.preview}</pre>;
+  }
+  const Component = definition.component;
+  return <Component descriptor={descriptor} decoded={decoded} />;
+}
+
+/**
+ * Choice of visualization for this pane.
+ *
+ * Only the kinds that suit the value are offered, judged from its shape and
+ * type rather than from the channels the current capture happens to carry --
+ * otherwise switching to a histogram, which asks Python for bins instead of
+ * points, would remove every other option and strand the user there.
+ */
+function VizSelector({ pane, descriptor }: { pane: PaneSpec; descriptor: Descriptor }) {
+  const options = availableViz(descriptor);
+  if (options.length < 2) return null;
+
+  const active = resolveViz(descriptor, pane.viz);
+
+  return (
+    <select
+      className="viz-option"
+      aria-label="Visualization"
+      value={pane.viz === "auto" ? "auto" : (active?.kind ?? "auto")}
+      onChange={(event) => {
+        const chosen = (event.target as HTMLSelectElement).value as PaneSpec["viz"];
+        post({ type: "updatePane", pane: { ...pane, viz: chosen } });
+      }}
+    >
+      <option value="auto">Auto{active ? ` (${active.label})` : ""}</option>
+      {options.map((definition) => (
+        <option key={definition.kind} value={definition.kind}>
+          {definition.label}
+        </option>
+      ))}
+    </select>
   );
 }
 

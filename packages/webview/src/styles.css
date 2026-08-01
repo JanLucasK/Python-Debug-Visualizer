@@ -269,6 +269,123 @@ button.secondary:hover {
   transition: opacity 120ms ease-out;
 }
 
+/* --- visualization chrome --- */
+
+.viz-option {
+  flex: 0 0 auto;
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: 0.9em;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  border: 1px solid var(--vscode-dropdown-border, transparent);
+  border-radius: 2px;
+}
+
+.object-preview pre {
+  margin: 0;
+  padding: 8px;
+  overflow-x: auto;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  color: var(--vscode-textPreformat-foreground);
+  background: var(--vscode-textCodeBlock-background);
+  border-radius: 2px;
+}
+
+/* --- heatmap --- */
+
+.heatmap-canvas-wrap {
+  overflow: auto;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 2px;
+}
+
+/*
+ * `pixelated` is set in code as well, on the element. It matters: scaling a
+ * heatmap with interpolation blends neighbouring cells into values that are not
+ * in the array, and a single anomalous cell is usually the thing being hunted.
+ */
+.heatmap-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.heatmap-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.colorbar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.colorbar-ramp {
+  flex: 1;
+  height: 10px;
+  min-width: 40px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 2px;
+}
+
+.colorbar-label {
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+}
+
+/* --- grid --- */
+
+.grid-scroll {
+  overflow: auto;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 2px;
+}
+
+.grid-table {
+  border-collapse: collapse;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-heading,
+.grid-index {
+  position: sticky;
+  font-weight: normal;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+}
+
+.grid-heading {
+  top: 0;
+  padding: 2px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.grid-index {
+  left: 0;
+  padding: 2px 8px;
+  text-align: right;
+  border-right: 1px solid var(--vscode-panel-border);
+}
+
+.grid-cell {
+  padding: 2px 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
 /* --- uPlot integration --- */
 
 .uplot {

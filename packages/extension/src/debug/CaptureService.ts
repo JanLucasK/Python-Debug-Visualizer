@@ -2,6 +2,7 @@ import {
   type CaptureError,
   PROTOCOL_VERSION,
   type ResolvedCapture,
+  type VizKind,
   type VizOptions,
   captureResponseSchema,
 } from "@python-debug-visualizer/protocol";
@@ -21,6 +22,14 @@ export class CaptureFailure extends Error {
 
 export interface CaptureRequest {
   expression: string;
+  /**
+   * The visualization this capture is for, or `"auto"`.
+   *
+   * It reaches Python because some visualizations are reductions rather than
+   * views: a histogram wants bin counts, and computing those in the debuggee is
+   * what keeps five million points from crossing the wire to draw sixty bars.
+   */
+  viz: VizKind | "auto";
   options: VizOptions;
   sequence: number;
 }
@@ -31,7 +40,7 @@ export class CaptureService {
     private readonly bootstrapper: Bootstrapper,
   ) {}
 
-  async capture({ expression, options, sequence }: CaptureRequest): Promise<ResolvedCapture> {
+  async capture({ expression, viz, options, sequence }: CaptureRequest): Promise<ResolvedCapture> {
     const context = this.tracker.context;
     if (!context) {
       throw new CaptureFailure({
@@ -54,7 +63,7 @@ export class CaptureService {
       });
     }
 
-    const call = buildCaptureExpression(expression, options);
+    const call = buildCaptureExpression(expression, viz, options);
 
     let raw: string;
     try {
@@ -135,8 +144,15 @@ export class CaptureService {
  * something. The user's own expression is interpolated verbatim — a malformed
  * one produces a Python SyntaxError, which is exactly the feedback they want.
  */
-function buildCaptureExpression(expression: string, options: VizOptions): string {
+function buildCaptureExpression(
+  expression: string,
+  viz: VizKind | "auto",
+  options: VizOptions,
+): string {
   const runtimeOptions: Record<string, unknown> = {};
+  // Omitted for "auto" so the adapter picks, since it is the side that just
+  // looked at the value.
+  if (viz !== "auto") runtimeOptions.viz = viz;
   if (options.maxPoints !== undefined) runtimeOptions.maxPoints = options.maxPoints;
   if (options.bins !== undefined) runtimeOptions.bins = options.bins;
 

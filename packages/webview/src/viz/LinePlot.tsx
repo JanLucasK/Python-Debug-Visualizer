@@ -9,17 +9,23 @@ interface Props {
   descriptor: Descriptor;
   decoded: DecodedCapture;
   height?: number;
+  /** `"scatter"` draws the same series as unconnected points. */
+  mode?: "line" | "scatter";
 }
 
 /**
- * Line and multi-line plot.
+ * Line, multi-line and scatter plot.
  *
  * uPlot is used rather than a heavier charting library because this renders
  * while someone is stepping through a debugger: the plot is redrawn on every
  * stop, so redraw cost is felt directly. It also takes typed arrays without a
  * conversion pass, which is what the binary channel format was shaped for.
+ *
+ * Scatter shares this component rather than getting its own, because the two
+ * differ by one series option. Splitting them would mean maintaining the axis,
+ * theme, resize and rebuild logic twice.
  */
-export function LinePlot({ descriptor, decoded, height = 240 }: Props) {
+export function LinePlot({ descriptor, decoded, height = 240, mode = "line" }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const plot = useRef<uPlot | null>(null);
 
@@ -57,7 +63,7 @@ export function LinePlot({ descriptor, decoded, height = 240 }: Props) {
 
     const build = () => {
       plot.current?.destroy();
-      plot.current = createPlot(element, latest.current, height);
+      plot.current = createPlot(element, latest.current, height, mode);
     };
 
     build();
@@ -76,7 +82,7 @@ export function LinePlot({ descriptor, decoded, height = 240 }: Props) {
       plot.current?.destroy();
       plot.current = null;
     };
-  }, [height, structure]);
+  }, [height, structure, mode]);
 
   useEffect(() => {
     if (!plot.current || series.length === 0) return;
@@ -126,7 +132,12 @@ function toPlotData(series: Series[]): uPlot.AlignedData {
   return [x, ...series.map((s) => s.values)] as unknown as uPlot.AlignedData;
 }
 
-function createPlot(container: HTMLDivElement, series: Series[], height: number): uPlot {
+function createPlot(
+  container: HTMLDivElement,
+  series: Series[],
+  height: number,
+  mode: "line" | "scatter",
+): uPlot {
   const theme = readTheme();
   const width = container.clientWidth || 600;
 
@@ -157,7 +168,14 @@ function createPlot(container: HTMLDivElement, series: Series[], height: number)
         // Gaps are drawn as gaps. A NaN means "no value here", and joining
         // across it would invent a line the data does not support.
         spanGaps: false,
-        points: { show: s.values.length <= 200 },
+        ...(mode === "scatter"
+          ? {
+              // Suppressing the path leaves the markers, which is what makes
+              // this a scatter plot.
+              paths: () => null,
+              points: { show: true, size: 5 },
+            }
+          : { points: { show: s.values.length <= 200 } }),
       })),
     ],
   };

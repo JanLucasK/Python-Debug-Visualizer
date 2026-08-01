@@ -144,6 +144,7 @@ export class VisualizerPanel implements vscode.Disposable {
 
       const capture = await this.captures.capture({
         expression: pane.expression,
+        viz: pane.viz,
         options: {
           maxPoints: vscode.workspace
             .getConfiguration("pythonDebugVisualizer")

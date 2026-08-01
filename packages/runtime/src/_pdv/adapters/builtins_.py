@@ -24,6 +24,9 @@ __all__ = ["ScalarAdapter", "SequenceAdapter", "FallbackAdapter", "install"]
 MAX_SCAN = 200_000
 DEFAULT_MAX_POINTS = 20_000
 
+#: Above a few hundred bins the bars are thinner than a pixel.
+MAX_BINS = 512
+
 _BOOL_INT_FLOAT = (bool, int, float)
 
 
@@ -101,6 +104,9 @@ class SequenceAdapter(Adapter):
             warnings.append("Sequence contains non-numeric elements; showing structure instead.")
             return Capture(descriptor=descriptor, warnings=warnings)
 
+        if options.get("viz") == "histogram":
+            return _build_histogram(value, numbers, _stats_of(numbers), options, warnings)
+
         stats = _stats_of(numbers)
         max_points = int(options.get("maxPoints") or DEFAULT_MAX_POINTS)
 
@@ -159,6 +165,79 @@ class FallbackAdapter(Adapter):
             suggested_viz=["tree"],
         )
         return Capture(descriptor=descriptor)
+
+
+def _build_histogram(
+    value: Any,
+    numbers: List[float],
+    stats: NumericStats,
+    options: Dict[str, Any],
+    warnings: List[str],
+) -> Capture:
+    """Bin a plain Python sequence.
+
+    Duplicated in spirit with the NumPy adapter rather than shared, because the
+    two have nothing in common beyond the output shape: this one is a loop, that
+    one is a vectorised call. What *is* shared is the wire format, so the
+    webview has exactly one histogram renderer.
+    """
+    finite = [v for v in numbers if v == v and not math.isinf(v)]
+    if not finite:
+        warnings.append("No finite values to bin.")
+        return Capture(
+            descriptor=Descriptor(
+                kind="sequence",
+                python_type=qualified_type(value),
+                preview=preview(value),
+                shape=[len(numbers)],
+                stats=stats,
+                channels=[],
+                suggested_viz=["scalar"],
+            ),
+            warnings=warnings,
+        )
+
+    if stats.nan_count or stats.inf_count:
+        warnings.append(
+            "{:,} non-finite values are excluded from the bins but counted in the "
+            "statistics.".format(stats.nan_count + stats.inf_count)
+        )
+
+    low, high = min(finite), max(finite)
+    requested = options.get("bins")
+    bin_count = (
+        max(1, min(int(requested), MAX_BINS))
+        if requested
+        else max(1, min(int(math.log2(len(finite))) + 1 if len(finite) > 1 else 1, MAX_BINS))
+    )
+
+    if high == low:
+        # A degenerate range still deserves a bar rather than a division by zero.
+        edges = [low - 0.5, low + 0.5]
+        counts = [len(finite)]
+    else:
+        width = (high - low) / bin_count
+        edges = [low + width * i for i in range(bin_count + 1)]
+        counts = [0] * bin_count
+        for number in finite:
+            index = int((number - low) / width)
+            counts[min(index, bin_count - 1)] += 1  # the maximum lands in the last bin
+
+    builder = PayloadBuilder()
+    builder.add("binEdge", "binEdge", "f64", _pack("d", edges), len(edges))
+    builder.add("binCount", "binCount", "i64", _pack("q", counts), len(counts))
+
+    descriptor = Descriptor(
+        kind="sequence",
+        python_type=qualified_type(value),
+        preview=preview(value),
+        shape=[len(numbers)],
+        dtype="float64",
+        stats=stats,
+        channels=builder.channels,
+        suggested_viz=["histogram"],
+    )
+    return Capture(descriptor=descriptor, payload=builder.build(), warnings=warnings)
 
 
 def _as_floats(values: Sequence[Any]) -> Optional[List[float]]:

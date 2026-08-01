@@ -72,6 +72,12 @@ class NumpyAdapter(Adapter):
                 suggested=["tree"],
             )
 
+        # A histogram is a reduction, so it is computed here rather than in the
+        # webview: the alternative is shipping ten million points across the
+        # wire to draw a hundred bars.
+        if options.get("viz") == "histogram":
+            return _build_histogram(np, arr, options, warnings)
+
         if arr.ndim == 1:
             return _build_1d(np, arr, wire_dtype, cast_to, time_unit, options, warnings)
         if arr.ndim == 2:
@@ -379,6 +385,82 @@ def _build_2d(
         suggested_viz=["heatmap", "grid", "histogram"],
     )
     return Capture(descriptor=descriptor, payload=builder.build(), warnings=warnings)
+
+
+#: Bounds on automatic bin counts. Below 1 there is no histogram; above a few
+#: hundred the bars are thinner than a pixel and the picture is just noise.
+MIN_BINS = 1
+MAX_BINS = 512
+
+
+def _build_histogram(np: Any, arr: Any, options: Dict[str, Any], warnings: List[str]) -> Capture:
+    flat = arr.reshape(-1)
+    stats = numeric_stats(np, flat)
+
+    finite = flat[np.isfinite(flat)] if flat.dtype.kind == "f" else flat
+    if finite.size == 0:
+        warnings.append("No finite values to bin.")
+        return _describe_only(np, arr, warnings=warnings, suggested=["scalar"])
+
+    if stats.nan_count or stats.inf_count:
+        # Said out loud because the bar heights would otherwise imply every
+        # element is accounted for somewhere in the chart.
+        warnings.append(
+            "{:,} non-finite values are excluded from the bins but counted in the statistics.".format(
+                stats.nan_count + stats.inf_count
+            )
+        )
+
+    bins = options.get("bins")
+    bins = _auto_bin_count(np, finite) if not bins else max(MIN_BINS, min(int(bins), MAX_BINS))
+
+    counts, edges = np.histogram(finite, bins=bins)
+
+    builder = PayloadBuilder()
+    builder.add(
+        "binEdge", "binEdge", "f64", _to_wire(np, edges, "f64", np.float64), int(edges.size)
+    )
+    builder.add(
+        "binCount", "binCount", "i64", _to_wire(np, counts, "i64", np.int64), int(counts.size)
+    )
+
+    descriptor = Descriptor(
+        kind="ndarray",
+        python_type=qualified_type(arr),
+        preview=preview(arr),
+        shape=list(arr.shape),
+        dtype=str(arr.dtype),
+        nbytes=int(arr.nbytes),
+        stats=stats,
+        channels=builder.channels,
+        suggested_viz=["histogram"],
+    )
+    return Capture(descriptor=descriptor, payload=builder.build(), warnings=warnings)
+
+
+def _auto_bin_count(np: Any, values: Any) -> int:
+    """Freedman-Diaconis, which adapts to spread instead of assuming normality.
+
+    Falls back to Sturges when the interquartile range collapses, which happens
+    with heavily repeated values -- a boolean mask cast to float, say.
+    """
+    n = int(values.size)
+    if n < 2:
+        return MIN_BINS
+
+    q75, q25 = np.percentile(values.astype(np.float64, copy=False), [75, 25])
+    iqr = float(q75 - q25)
+    spread = float(values.max()) - float(values.min())
+    if spread <= 0:
+        return MIN_BINS
+
+    if iqr > 0:
+        width = 2.0 * iqr / (n ** (1.0 / 3.0))
+        count = int(math.ceil(spread / width)) if width > 0 else 0
+    else:
+        count = int(math.ceil(math.log2(n))) + 1
+
+    return max(MIN_BINS, min(count, MAX_BINS))
 
 
 def _build_numpy_scalar(np: Any, value: Any) -> Capture:
