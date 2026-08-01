@@ -15,8 +15,17 @@ from __future__ import annotations
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
+from .. import window as window_mod
 from ..codec import PayloadBuilder, preview, qualified_type
-from ..descriptor import Capture, ColumnInfo, Decimation, Descriptor, IndexInfo, NumericStats
+from ..descriptor import (
+    Capture,
+    ColumnInfo,
+    Decimation,
+    Descriptor,
+    IndexInfo,
+    NumericStats,
+    WindowInfo,
+)
 from ..registry import Adapter, Registry
 from . import numpy_
 
@@ -153,10 +162,17 @@ def _build_series(pd: Any, np: Any, series: Any, options: Dict[str, Any]) -> Cap
 
     stats = numpy_.numeric_stats(np, values)
     max_points = int(options.get("maxPoints") or numpy_.DEFAULT_MAX_POINTS)
-    positions, method = numpy_.decimate_indices(np, values, max_points)
 
+    # The x axis is the index, so a zoom range arrives in index units and the
+    # crop selects by value rather than by position.
+    axis, time_unit = _index_channel(pd, np, series.index, None)
+    crop = window_mod.plan(np, axis, int(values.size), options)
+    values = crop.apply(values)
+    axis = crop.axis
+
+    positions, method = numpy_.decimate_indices(np, values, max_points)
     shown = values if positions is None else values[positions]
-    index_values, time_unit = _index_channel(pd, np, series.index, positions)
+    index_values = None if axis is None else (axis if positions is None else axis[positions])
 
     builder = PayloadBuilder()
     if index_values is not None:
@@ -201,6 +217,13 @@ def _build_series(pd: Any, np: Any, series: Any, options: Dict[str, Any]) -> Cap
                 output_length=int(shown.size),
             )
         ),
+        window=(
+            None
+            if crop.window is None
+            else WindowInfo(
+                low=crop.window.low, high=crop.window.high, stats=numpy_.numeric_stats(np, values)
+            )
+        ),
         suggested_viz=["line", "histogram", "scatter", "grid"],
     )
     return Capture(descriptor=descriptor, payload=builder.build(), warnings=warnings)
@@ -241,10 +264,17 @@ def _build_frame(pd: Any, np: Any, frame: Any, options: Dict[str, Any]) -> Captu
     # them on different x positions and make them incomparable -- which is the
     # entire reason to plot them together.
     max_points = int(options.get("maxPoints") or numpy_.DEFAULT_MAX_POINTS)
-    reference = frame[shown_names[0]].to_numpy()
-    positions, method = numpy_.decimate_indices(np, reference, max_points)
 
-    index_values, time_unit = _index_channel(pd, np, frame.index, positions)
+    # One crop and one decimation for the whole frame. Columns cut or reduced
+    # independently would land on different x positions, and comparing series
+    # sampled at different places defeats the reason to overlay them.
+    axis, time_unit = _index_channel(pd, np, frame.index, None)
+    crop = window_mod.plan(np, axis, int(frame.shape[0]), options)
+    axis = crop.axis
+
+    reference = crop.apply(frame[shown_names[0]].to_numpy())
+    positions, method = numpy_.decimate_indices(np, reference, max_points)
+    index_values = None if axis is None else (axis if positions is None else axis[positions])
 
     builder = PayloadBuilder()
     if index_values is not None:
@@ -267,13 +297,16 @@ def _build_frame(pd: Any, np: Any, frame: Any, options: Dict[str, Any]) -> Captu
             )
             continue
 
-        values = frame[name].to_numpy()
-        wire_dtype, cast_to, _ = numpy_._map_dtype(np, values.dtype)
+        whole = frame[name].to_numpy()
+        wire_dtype, cast_to, _ = numpy_._map_dtype(np, whole.dtype)
         if wire_dtype is None:
             columns.append(ColumnInfo(name=label, dtype=str(frame[name].dtype), numeric=False))
             continue
 
-        stats = numpy_.numeric_stats(np, values)
+        # Over the whole column, before the crop. Zooming must not redefine what
+        # the statistics mean.
+        stats = numpy_.numeric_stats(np, whole)
+        values = crop.apply(whole)
         overall = stats if overall is None else overall
         shown = values if positions is None else values[positions]
         builder.add(
@@ -314,8 +347,17 @@ def _build_frame(pd: Any, np: Any, frame: Any, options: Dict[str, Any]) -> Captu
             if positions is None
             else Decimation(
                 method=method or "stride",
-                original_length=int(frame.shape[0]),
+                original_length=int(reference.size),
                 output_length=int(positions.size),
+            )
+        ),
+        window=(
+            None
+            if crop.window is None
+            else WindowInfo(
+                low=crop.window.low,
+                high=crop.window.high,
+                stats=numpy_.numeric_stats(np, reference),
             )
         ),
         truncated=len(numeric) > len(shown_names),

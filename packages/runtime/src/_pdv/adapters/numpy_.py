@@ -307,7 +307,8 @@ def _build_1d(
     max_points = int(options.get("maxPoints") or DEFAULT_MAX_POINTS)
 
     axis = explicit_axis(np, arr.size, options, warnings)
-    values, axis_values, window = apply_window(np, arr, axis, options)
+    crop = window_mod.plan(np, axis, int(arr.size), options)
+    values, axis_values, window = crop.apply(arr), crop.axis, crop.window
 
     indices, method = decimate_indices(np, values, max_points)
     shown = values if indices is None else values[indices]
@@ -400,25 +401,6 @@ def _as_axis(np: Any, value: Any) -> Any:
         numbers = window_mod.as_float_list(list(value))
         return None if numbers is None else np.asarray(numbers, dtype=np.float64)
     return None
-
-
-def apply_window(np: Any, arr: Any, axis: Any, options: Dict[str, Any]):
-    """Crop to the requested window, before decimation rather than after.
-
-    Cropping afterwards would leave a zoomed view holding whatever few points
-    survived the reduction of the *whole* series -- narrower, but no more
-    detailed, which is backwards from what zooming is for.
-    """
-    window = window_mod.requested_window(options)
-    if window is None:
-        return arr, axis, None
-
-    if axis is None:
-        low, high = window_mod.slice_positions(int(arr.size), window)
-        return arr[low:high], np.arange(low, high, dtype=np.float64), window
-
-    mask = window_mod.mask_for(np, axis, window)
-    return arr[mask], axis[mask], window
 
 
 def _build_2d(

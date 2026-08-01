@@ -68,3 +68,59 @@ def as_float_list(values: Sequence[Any]) -> Optional[List[float]]:
         else:
             return None
     return out
+
+
+class Crop:
+    """How to cut every series of one capture down to the same window.
+
+    One plan shared by all of them, for the same reason they share one
+    decimation: series cropped independently would end up on different x
+    positions, and comparing series sampled at different places is the failure
+    that overlaying them is supposed to prevent.
+    """
+
+    __slots__ = ("selector", "axis", "window")
+
+    def __init__(self, selector: Any, axis: Any, window: Optional[Window]) -> None:
+        #: None, a slice, or an index/mask array. Applied to every series.
+        self.selector = selector
+        #: The x values after cropping, or None when positions are still implicit.
+        self.axis = axis
+        self.window = window
+
+    def apply(self, values: Any) -> Any:
+        if self.selector is None:
+            return values
+        if isinstance(self.selector, slice):
+            return values[self.selector]
+        if isinstance(values, list):
+            return [values[i] for i in self.selector]
+        return values[self.selector]
+
+
+def plan(np: Any, axis: Any, length: int, options: dict) -> Crop:
+    """Work out the crop for a capture, before anything is decimated.
+
+    Order is the point: cropping after decimation leaves a zoomed view holding
+    whatever survived the reduction of the whole series -- narrower, but no more
+    detailed.
+    """
+    window = requested_window(options)
+    if window is None:
+        return Crop(None, axis, None)
+
+    if axis is None:
+        low, high = slice_positions(length, window)
+        rebuilt = (
+            np.arange(low, high, dtype="float64")
+            if np is not None
+            else list(range(low, high))
+        )
+        return Crop(slice(low, high), rebuilt, window)
+
+    if np is not None and hasattr(axis, "dtype"):
+        mask = mask_for(np, axis, window)
+        return Crop(mask, axis[mask], window)
+
+    kept = [i for i, value in enumerate(axis) if window.low <= value <= window.high]
+    return Crop(kept, [axis[i] for i in kept], window)

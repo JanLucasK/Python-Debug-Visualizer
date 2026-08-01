@@ -12,8 +12,9 @@ import math
 import sys as _sys
 from typing import Any, Dict, List, Optional, Sequence
 
+from .. import window as window_mod
 from ..codec import PayloadBuilder, preview, qualified_type
-from ..descriptor import Capture, Decimation, Descriptor, NumericStats
+from ..descriptor import Capture, Decimation, Descriptor, NumericStats, WindowInfo
 from ..registry import Adapter, Registry
 
 __all__ = ["ScalarAdapter", "SequenceAdapter", "FallbackAdapter", "install"]
@@ -107,21 +108,27 @@ class SequenceAdapter(Adapter):
         if options.get("viz") == "histogram":
             return _build_histogram(value, numbers, _stats_of(numbers), options, warnings)
 
+        # Statistics describe the whole sequence, computed before the crop.
         stats = _stats_of(numbers)
         max_points = int(options.get("maxPoints") or DEFAULT_MAX_POINTS)
 
+        crop = window_mod.plan(None, None, len(numbers), options)
+        shown_numbers = crop.apply(numbers)
+
         builder = PayloadBuilder()
-        if len(numbers) > max_points:
-            step = math.ceil(len(numbers) / max_points)
-            kept_idx = list(range(0, len(numbers), step))
-            kept = [numbers[i] for i in kept_idx]
-            builder.add("x", "x", "i64", _pack("q", kept_idx), len(kept_idx))
+        if len(shown_numbers) > max_points:
+            step = math.ceil(len(shown_numbers) / max_points)
+            kept_idx = [crop.axis[i] if crop.axis else i for i in range(0, len(shown_numbers), step)]
+            kept = [shown_numbers[i] for i in range(0, len(shown_numbers), step)]
+            builder.add("x", "x", "i64", _pack("q", [int(i) for i in kept_idx]), len(kept_idx))
             builder.add("y", "y", "f64", _pack("d", kept), len(kept), stats)
             decimation: Optional[Decimation] = Decimation(
-                method="stride", original_length=len(numbers), output_length=len(kept)
+                method="stride", original_length=len(shown_numbers), output_length=len(kept)
             )
         else:
-            builder.add("y", "y", "f64", _pack("d", numbers), len(numbers), stats)
+            if crop.window is not None and crop.axis is not None:
+                builder.add("x", "x", "i64", _pack("q", [int(i) for i in crop.axis]), len(crop.axis))
+            builder.add("y", "y", "f64", _pack("d", shown_numbers), len(shown_numbers), stats)
             decimation = None
 
         descriptor = Descriptor(
@@ -134,6 +141,13 @@ class SequenceAdapter(Adapter):
             stats=stats,
             channels=builder.channels,
             decimation=decimation,
+            window=(
+                None
+                if crop.window is None
+                else WindowInfo(
+                    low=crop.window.low, high=crop.window.high, stats=_stats_of(shown_numbers)
+                )
+            ),
             truncated=truncated,
             suggested_viz=["line", "histogram", "scatter"],
         )

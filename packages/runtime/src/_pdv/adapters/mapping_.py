@@ -15,8 +15,9 @@ import math
 import sys
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from .. import window as window_mod
 from ..codec import PayloadBuilder, preview, qualified_type
-from ..descriptor import Capture, ColumnInfo, Decimation, Descriptor, NumericStats
+from ..descriptor import Capture, ColumnInfo, Decimation, Descriptor, NumericStats, WindowInfo
 from ..registry import Adapter, Registry
 from . import builtins_, numpy_
 
@@ -106,20 +107,34 @@ def _build_series(
 ) -> Capture:
     max_points = int(options.get("maxPoints") or builtins_.DEFAULT_MAX_POINTS)
 
-    # One decimation decision for every entry, as for a DataFrame: entries
-    # decimated separately would land on different x positions, and comparing
-    # series sampled at different places defeats the reason to overlay them.
-    positions, method = _shared_decimation(np, vectors[0][1], max_points)
+    # One crop and one decimation for every entry, as for a DataFrame: entries
+    # cut or reduced separately would land on different x positions, and
+    # comparing series sampled at different places defeats the reason to
+    # overlay them.
+    crop = window_mod.plan(np, None, length, options)
+    # The full vectors are kept: statistics describe the whole value, and
+    # computing them after cropping is exactly the quiet lie the stats strip
+    # exists not to tell.
+    cropped = [(name, crop.apply(vector)) for name, vector in vectors]
+
+    positions, method = _shared_decimation(np, cropped[0][1], max_points)
+    # Without a window the axis is still the implicit 0..n-1, and there is
+    # nothing to take from.
+    axis = crop.axis
+    if axis is not None and positions is not None:
+        axis = _take(np, axis, positions)
 
     builder = PayloadBuilder()
-    if positions is not None:
+    if crop.window is not None and axis is not None:
+        builder.add("x", "x", "f64", _pack_values(np, axis), len(axis))
+    elif positions is not None:
         builder.add("x", "x", "i64", _pack_positions(np, positions), len(positions))
 
     columns: List[ColumnInfo] = []
     overall: Optional[NumericStats] = None
 
-    for name, vector in vectors:
-        stats = _stats_of(np, vector)
+    for (name, whole), (_, vector) in zip(vectors, cropped):
+        stats = _stats_of(np, whole)
         overall = overall or stats
         shown = vector if positions is None else _take(np, vector, positions)
         builder.add(name, "y", "f64", _pack_values(np, shown), len(shown), stats)
@@ -139,7 +154,18 @@ def _build_series(
             None
             if positions is None
             else Decimation(
-                method=method or "stride", original_length=length, output_length=len(positions)
+                method=method or "stride",
+                original_length=len(cropped[0][1]),
+                output_length=len(positions),
+            )
+        ),
+        window=(
+            None
+            if crop.window is None
+            else WindowInfo(
+                low=crop.window.low,
+                high=crop.window.high,
+                stats=_stats_of(np, cropped[0][1]),
             )
         ),
         suggested_viz=["line", "grid", "scatter", "histogram"],
