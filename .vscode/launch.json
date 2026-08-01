@@ -15,7 +15,11 @@
       "request": "launch",
       "program": "${workspaceFolder}/examples/demo.py",
       "console": "integratedTerminal",
-      "justMyCode": true
+      "justMyCode": true,
+      // Pinned to the project venv from the README rather than to whichever
+      // interpreter happens to be selected, since the demo needs numpy.
+      // On Windows this is .venv/Scripts/python.exe.
+      "python": "${workspaceFolder}/.venv/bin/python"
     }
   ]
 }

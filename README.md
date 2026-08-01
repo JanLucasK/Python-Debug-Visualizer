@@ -79,6 +79,21 @@ python -m venv .venv && .venv/bin/pip install -e "packages/runtime[dev]"
 
 Press `F5` to launch an Extension Development Host.
 
+### If VS Code tasks report `pnpm: command not found`
+
+Tasks run under `bash -c`, which is non-interactive and therefore never sources
+`~/.bashrc`. Version managers that install themselves there — nvm in particular —
+are invisible to it, and the guard at the top of Ubuntu's stock `.bashrc` means
+even a login shell will not help.
+
+Put the binaries somewhere every shell looks:
+
+```bash
+ln -sf "$NVM_DIR/versions/node/$(node --version)/bin/"{node,npm,npx,corepack,pnpm} ~/.local/bin/
+```
+
+Then reload the VS Code window, so it picks up the new `PATH`.
+
 ## Relationship to other extensions
 
 This is **not** a port of [hediet's Debug Visualizer](https://github.com/hediet/vscode-debug-visualizer)

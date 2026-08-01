@@ -16,6 +16,8 @@ iteration, which is exactly the case this tool is built for.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 
@@ -43,7 +45,12 @@ def smooth_with_outliers(noisy: np.ndarray, window: int = 25) -> np.ndarray:
     smoothed = np.full_like(noisy, np.nan)
     for start in range(0, len(noisy) - window, window):
         chunk = noisy[start : start + window]
-        smoothed[start : start + window] = np.nanmean(chunk)  # <-- breakpoint here
+        with warnings.catch_warnings():
+            # Chunks lying entirely inside the dropout average to NaN. That is
+            # the interesting case, not an accident: the gap propagates into
+            # `smoothed`, so the plot shows a hole rather than a made-up value.
+            warnings.simplefilter("ignore", RuntimeWarning)
+            smoothed[start : start + window] = np.nanmean(chunk)  # <-- breakpoint here
     return smoothed
 
 
