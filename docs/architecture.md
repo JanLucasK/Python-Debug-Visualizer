@@ -149,9 +149,27 @@ wrong is worse.
 
 | | Scope | State |
 |---|---|---|
-| M0 | Monorepo, protocol, runtime, injection | runtime and protocol done |
-| M1 | Bootstrapper, evaluator, inline transport, numpy 1-D → line | in progress |
-| M2 | pandas / torch / tf adapters, remaining visualizations | |
-| M3 | Snapshot, diff, history scrubber | |
+| M0 | Monorepo, protocol, runtime, injection | done |
+| M1 | Bootstrapper, evaluator, inline transport, numpy 1-D → line | done |
+| M2 | pandas / torch / tf adapters, remaining visualizations | done |
+| M3 | Snapshot, diff, history scrubber | next |
 | M4 | Socket transport, zoom-triggered refetch | |
 | M5 | Multi-pane, remote hardening, publish | |
+
+## Where visualizations are decided
+
+Three separate questions, deliberately answered in different places:
+
+- **What can this value support?** The webview's viz registry, from the
+  descriptor's kind, shape and statistics — never from the channels the current
+  capture happens to carry. A histogram capture contains bin counts instead of
+  points, so a channel-based test would hide every other option the moment one
+  was picked, with no way back.
+- **What should it show by default?** The Python adapter, via
+  `Descriptor.suggestedViz`. It is the side that just looked at the value.
+- **What is actually shown?** The user's per-pane choice, which overrides both.
+
+Some visualizations are *reductions* rather than views. A histogram needs bin
+counts, and computing those in the debuggee is what keeps five million points
+from crossing the wire to draw sixty bars — so the selected kind travels to
+Python, and adapters that care about it branch on `options["viz"]`.

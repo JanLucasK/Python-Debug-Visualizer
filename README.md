@@ -17,14 +17,23 @@ expression at successive steps, overlaying them, and seeing what moved.
 
 ## What it does
 
-- **Plots** — line, multi-line, scatter, histogram, heatmap and 2-D image, plus
-  a virtualised grid for tabular data.
+- **Plots** — line, multi-line, scatter, histogram and heatmap, plus a
+  virtualised table. Pick per pane, or let the runtime suggest.
 - **Statistics you can trust** — shape, dtype, min/max/mean/std and NaN/Inf
   counts, always computed over the *whole* value even when the plot is
   downsampled.
-- **Snapshot and diff** — pin a value at one step, compare it at the next.
 - **No `pip install` in your project.** The Python runtime is injected into the
   debug session, so it works in virtualenvs, containers and over SSH.
+
+Supported out of the box: **NumPy** arrays, **Pandas** DataFrames, Series and
+indexes, **PyTorch** and **TensorFlow** tensors, and plain lists and scalars.
+Anything else is described rather than plotted — type, shape and repr, which is
+usually enough.
+
+Tensors are handled properly rather than nominally: a tensor with
+`requires_grad` is readable, a CUDA tensor is copied without disturbing the
+program, `bfloat16` widens instead of failing, and a sparse tensor is described
+rather than silently densified into memory you may not have.
 
 ## How it works
 

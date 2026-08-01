@@ -49,6 +49,18 @@ export function LinePlot({ descriptor, decoded, height = 240, mode = "line" }: P
   const latest = useRef(series);
   latest.current = series;
 
+  /**
+   * Whether the x axis carries timestamps rather than positions.
+   *
+   * Only true when the runtime actually sent index values: a DatetimeIndex that
+   * fell back to positions would otherwise have its point numbers formatted as
+   * dates in 1970.
+   */
+  const timeAxis =
+    descriptor.index?.kind === "datetime" &&
+    descriptor.index.timeUnit === "ms" &&
+    decoded.channels.has("x");
+
   // A layout effect so the chart is sized before paint, avoiding a visible jump
   // on the first frame after every debugger step.
   //
@@ -63,7 +75,7 @@ export function LinePlot({ descriptor, decoded, height = 240, mode = "line" }: P
 
     const build = () => {
       plot.current?.destroy();
-      plot.current = createPlot(element, latest.current, height, mode);
+      plot.current = createPlot(element, latest.current, height, mode, timeAxis);
     };
 
     build();
@@ -82,7 +94,7 @@ export function LinePlot({ descriptor, decoded, height = 240, mode = "line" }: P
       plot.current?.destroy();
       plot.current = null;
     };
-  }, [height, structure, mode]);
+  }, [height, structure, mode, timeAxis]);
 
   useEffect(() => {
     if (!plot.current || series.length === 0) return;
@@ -137,6 +149,7 @@ function createPlot(
   series: Series[],
   height: number,
   mode: "line" | "scatter",
+  timeAxis: boolean,
 ): uPlot {
   const theme = readTheme();
   const width = container.clientWidth || 600;
@@ -144,6 +157,10 @@ function createPlot(
   const options: uPlot.Options = {
     width,
     height,
+    // uPlot assumes seconds on a time scale. The runtime normalises every
+    // datetime index to milliseconds, so it has to be told -- otherwise every
+    // timestamp lands in 1970 and the axis looks broken rather than wrong.
+    ms: 1,
     // A legend for two or more series is not optional: three light-mode palette
     // slots sit below 3:1 contrast on white, so the labels are what carry
     // identity. A single series needs none — the pane header already names it.
@@ -154,13 +171,13 @@ function createPlot(
       drag: { x: true, y: false },
       focus: { prox: 16 },
     },
-    scales: { x: { time: false } },
+    scales: { x: { time: timeAxis } },
     axes: [
       { stroke: theme.axis, grid: { stroke: theme.grid, width: 1 }, ticks: { stroke: theme.grid } },
       { stroke: theme.axis, grid: { stroke: theme.grid, width: 1 }, ticks: { stroke: theme.grid } },
     ],
     series: [
-      { label: "index" },
+      { label: timeAxis ? "time" : "index" },
       ...series.map((s, index) => ({
         label: s.label,
         stroke: seriesColor(theme, index),

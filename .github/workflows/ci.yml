@@ -20,7 +20,7 @@ jobs:
           python-version: ${{ matrix.python }}
       # debugpy powers the DAP integration tests, which drive a real debug
       # session rather than mocking one.
-      - run: pip install pytest numpy debugpy
+      - run: pip install pytest numpy pandas debugpy
       - run: python -m pytest packages/runtime/tests -q
 
   runtime-bare:
@@ -35,6 +35,22 @@ jobs:
           python-version: "3.12"
       - run: pip install pytest
       - run: python -m pytest packages/runtime/tests -q
+
+  runtime-tensors:
+    # Torch is a large download, so it runs once on one version rather than
+    # across the matrix. The tensor tests cover conversion decisions -- autograd
+    # detachment, device transfer, bfloat16 widening -- that only real torch can
+    # exercise.
+    name: runtime (torch)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest numpy
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch
+      - run: python -m pytest packages/runtime/tests/test_capture_tensors.py -q
 
   extension:
     name: extension

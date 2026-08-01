@@ -19,9 +19,30 @@ from . import builtins_
 def install(registry: Registry) -> None:
     builtins_.install(registry)
     registry.register_lazy("numpy", _install_numpy)
+    registry.register_lazy("pandas", _install_pandas)
+    registry.register_lazy("torch", _install_torch)
+    registry.register_lazy("tensorflow", _install_tensorflow)
 
 
 def _install_numpy(registry: Registry) -> None:
     from . import numpy_
 
     numpy_.install(registry)
+
+
+def _install_pandas(registry: Registry) -> None:
+    from . import pandas_
+
+    pandas_.install(registry)
+
+
+def _install_torch(registry: Registry) -> None:
+    from . import torch_
+
+    torch_.install(registry)
+
+
+def _install_tensorflow(registry: Registry) -> None:
+    from . import tensorflow_
+
+    tensorflow_.install(registry)

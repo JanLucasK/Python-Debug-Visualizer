@@ -8,10 +8,20 @@ expressions:
     noisy               the same signal with noise and a few NaN gaps
     smoothed            the current state of the smoothing loop
     noisy - smoothed    what the filter removed so far
-    field               a 2-D array
+    field               a 2-D array -- try the Heatmap and Table views
 
 Stepping through the loop is the interesting part: `smoothed` changes on every
 iteration, which is exactly the case this tool is built for.
+
+The second breakpoint, at the end of `main`, has the pandas side:
+
+    prices                       a DataFrame on a DatetimeIndex
+    prices[["close", "sma20"]]   two columns overlaid on a time axis
+    prices["volume"]             switch this one to Histogram
+    prices.index                 the index on its own
+
+`prices` also carries a non-numeric column, which the tool reports rather than
+quietly dropping.
 """
 
 from __future__ import annotations
@@ -54,6 +64,32 @@ def smooth_with_outliers(noisy: np.ndarray, window: int = 25) -> np.ndarray:
     return smoothed
 
 
+def make_prices(days: int = 400):
+    """A DataFrame on a DatetimeIndex, for the time-series case.
+
+    Returns None when pandas is not installed, so the rest of the demo still
+    runs — the extension does not require it either.
+    """
+    try:
+        import pandas as pd
+    except ImportError:
+        return None
+
+    rng = np.random.default_rng(seed=7)
+    index = pd.date_range("2025-01-01", periods=days, freq="B", name="date")
+    close = 100 * np.exp(np.cumsum(rng.normal(0.0004, 0.012, days)))
+
+    return pd.DataFrame(
+        {
+            "close": close,
+            "sma20": pd.Series(close, index=index).rolling(20).mean().to_numpy(),
+            "volume": rng.integers(1_000, 50_000, days).astype(float),
+            "ticker": ["ACME"] * days,  # non-numeric on purpose: it must be reported, not dropped
+        },
+        index=index,
+    )
+
+
 def main() -> None:
     signal, noisy = make_signals()
     smoothed = smooth_with_outliers(noisy)
@@ -64,9 +100,12 @@ def main() -> None:
     booleans = np.abs(noisy) > 1.0
     plain_list = [float(v) for v in signal[:500]]
 
+    prices = make_prices()  # DataFrame with a DatetimeIndex, or None without pandas
+
     print("signal", signal.shape, "smoothed", smoothed.shape)
     print("field", field.shape, "integers", integers.shape)
     print("booleans", booleans.sum(), "plain_list", len(plain_list))
+    print("prices", None if prices is None else prices.shape)  # <-- second breakpoint here
 
 
 if __name__ == "__main__":
