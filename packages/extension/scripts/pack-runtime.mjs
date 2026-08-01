@@ -8,6 +8,7 @@
  * Python test suite exercise the loader without depending on the Node build.
  */
 
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -69,9 +70,22 @@ const compress = (text) => deflateSync(Buffer.from(text, "utf8"), { level: 9 }).
 const runtimeVersion = readRuntimeVersion();
 const protocolVersion = readProtocolVersion();
 
+const sources = JSON.stringify(collectSources());
+
+/**
+ * Identity of the code being injected, not of the release.
+ *
+ * A debug session installs the runtime once and keeps it. Keying that on a
+ * hand-maintained version string means an edited runtime never reaches a
+ * session that is already running -- the new code is simply skipped, and the
+ * symptom is a feature that silently does nothing until the session is
+ * restarted. Hashing the sources makes any edit replace the installed copy.
+ */
+const runtimeBuild = `${runtimeVersion}+${createHash("sha256").update(sources).digest("hex").slice(0, 12)}`;
+
 const loader = readFileSync(loaderPath, "utf8")
-  .replace("@@SOURCES@@", compress(JSON.stringify(collectSources())))
-  .replace("@@VERSION@@", runtimeVersion);
+  .replace("@@SOURCES@@", compress(sources))
+  .replace("@@BUILD@@", runtimeBuild);
 
 // The trailing `{}` gives exec its own globals so the loader's names never
 // reach the frame the user is paused in. See packages/runtime/bootstrap/loader.py.
@@ -84,6 +98,9 @@ writeFileSync(
 // Source of truth: packages/runtime/
 
 export const RUNTIME_VERSION = ${JSON.stringify(runtimeVersion)};
+
+/** Version plus a hash of the packed sources; changes whenever the code does. */
+export const RUNTIME_BUILD = ${JSON.stringify(runtimeBuild)};
 export const RUNTIME_PROTOCOL_VERSION = ${protocolVersion};
 
 /** Single expression that installs the runtime into the debuggee's sys.modules. */
@@ -93,4 +110,4 @@ export const BOOTSTRAP_EXPRESSION = ${JSON.stringify(expression)};
 );
 
 const kb = (expression.length / 1024).toFixed(1);
-console.log(`pack-runtime: ${runtimeVersion}, bootstrap expression ${kb} KB`);
+console.log(`pack-runtime: ${runtimeBuild}, bootstrap expression ${kb} KB`);

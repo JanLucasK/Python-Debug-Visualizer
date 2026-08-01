@@ -1,5 +1,5 @@
 import type * as vscode from "vscode";
-import { BOOTSTRAP_EXPRESSION, RUNTIME_VERSION } from "../generated/bootstrap";
+import { BOOTSTRAP_EXPRESSION, RUNTIME_BUILD } from "../generated/bootstrap";
 import { log } from "../log";
 import { evaluate } from "./Evaluator";
 import type { DebugContext } from "./SessionTracker";
@@ -52,16 +52,18 @@ export class Bootstrapper {
       frameId,
     });
     const { document } = decodeEnvelope(raw);
-    const report = document as { runtimeVersion?: string; adapters?: string[] };
+    const report = document as { build?: string; adapters?: string[] };
 
-    if (report.runtimeVersion !== RUNTIME_VERSION) {
+    // Compared against the build rather than the release version, so a stale
+    // runtime left in a long-running session is detected rather than accepted.
+    if (report.build !== RUNTIME_BUILD) {
       throw new Error(
-        `Runtime reported version ${report.runtimeVersion ?? "unknown"}, expected ${RUNTIME_VERSION}.`,
+        `Runtime reported build ${report.build ?? "unknown"}, expected ${RUNTIME_BUILD}.`,
       );
     }
 
     log.info(
-      `Runtime ${RUNTIME_VERSION} installed in session ${session.name} in ${Date.now() - started} ms ` +
+      `Runtime ${RUNTIME_BUILD} installed in session ${session.name} in ${Date.now() - started} ms ` +
         `(adapters: ${(report.adapters ?? []).join(", ")})`,
     );
   }

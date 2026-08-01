@@ -26,7 +26,17 @@ a remote host.
 """
 
 _PDV_SOURCES_B64 = "@@SOURCES@@"
-_PDV_VERSION = "@@VERSION@@"
+
+#: Identifies the exact *code* being injected: the release version plus a hash
+#: of the packed sources.
+#:
+#: Deliberately not the release version on its own. A debug session installs the
+#: runtime once and keeps it; if the marker only changed when someone remembered
+#: to bump a version string, an edited runtime would never reach a session that
+#: was already running, and the symptom is a new feature that silently does
+#: nothing until the whole session is restarted. Deriving it from the content
+#: means any change to any source file replaces the installed copy.
+_PDV_BUILD = "@@BUILD@@"
 
 
 def _pdv_bootstrap():
@@ -38,13 +48,12 @@ def _pdv_bootstrap():
     import zlib
 
     existing = sys.modules.get("_pdv")
-    if existing is not None and getattr(existing, "RUNTIME_VERSION", None) == _PDV_VERSION:
-        return  # already installed at the right version
+    if existing is not None and getattr(existing, "__pdv_build__", None) == _PDV_BUILD:
+        return  # this exact code is already installed
 
     if existing is not None:
-        # A different version is loaded, from a previous session or a pip
-        # install. Evict it wholesale; a half-replaced package is worse than
-        # either version on its own.
+        # Different code is loaded, from an earlier session or a pip install.
+        # Evict it wholesale; a half-replaced package is worse than either.
         for name in [n for n in sys.modules if n == "_pdv" or n.startswith("_pdv.")]:
             del sys.modules[name]
 
@@ -73,7 +82,9 @@ def _pdv_bootstrap():
             return None
 
     sys.meta_path.insert(0, _PdvFinder())
-    __import__("_pdv")
+    # Stamped by the loader rather than baked into a source file, so the runtime
+    # does not have to know a hash of itself.
+    __import__("_pdv").__pdv_build__ = _PDV_BUILD
 
 
 _pdv_bootstrap()

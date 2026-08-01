@@ -61,6 +61,8 @@ def capture(value: Any, options_b64: str = "") -> str:
 
 def diagnostics() -> str:
     """Report runtime state. Used by the extension to verify a successful injection."""
+    import sys
+
     from .version import RUNTIME_VERSION
 
     return envelope.encode(
@@ -68,6 +70,9 @@ def diagnostics() -> str:
             "v": PROTOCOL_VERSION,
             "ok": True,
             "runtimeVersion": RUNTIME_VERSION,
+            # Stamped by the bootstrap loader; identifies the exact code, which
+            # the release version alone does not.
+            "build": getattr(sys.modules.get("_pdv"), "__pdv_build__", None),
             "adapters": registry.adapter_names(),
         }
     )

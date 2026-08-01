@@ -120,3 +120,61 @@ def test_runtime_works_without_any_third_party_packages(bootstrap_expression):
     document, _ = envelope.decode(completed.stdout.strip())
     assert document["ok"] is True
     assert document["descriptor"]["kind"] == "scalar"
+
+
+def test_reinstalls_when_the_code_changed(bootstrap_expression):
+    """The failure this prevents, which cost a real debugging session.
+
+    A debuggee installs the runtime once and keeps it. The check for "already
+    installed" used to compare a hand-maintained version string, so editing the
+    runtime without bumping it meant the new code never reached a session that
+    was already running: the bootstrap ran, saw a matching version, and returned
+    without doing anything. A newly added adapter simply did nothing, and the
+    only cure was restarting the whole debug session.
+
+    The marker is now derived from the sources, so any edit invalidates it.
+    """
+    output = run_script(
+        """
+        import sys, types
+
+        # A runtime from an earlier build, complete with its own marker.
+        old = types.ModuleType("_pdv")
+        old.__pdv_build__ = "0.0.1+000000000000"
+        old.marker = "old"
+        sys.modules["_pdv"] = old
+
+        {expr}
+
+        print(getattr(sys.modules["_pdv"], "marker", "replaced"))
+        """.format(expr=bootstrap_expression)
+    )
+    assert output == "replaced", "a stale runtime was left in place"
+
+
+def test_diagnostics_reports_the_build_marker(bootstrap_expression):
+    output = run_script(
+        """
+        {expr}
+        print(__import__("_pdv").diagnostics())
+        """.format(expr=bootstrap_expression)
+    )
+    from _pdv import envelope
+
+    document, _ = envelope.decode(output)
+    assert document["build"], "diagnostics must report the build the loader stamped"
+    assert document["build"].startswith(document["runtimeVersion"])
+
+
+def test_build_marker_changes_with_the_sources():
+    """Two different source sets must not share an identity."""
+    import hashlib
+    import json
+
+    from conftest import collect_sources
+
+    first = json.dumps(collect_sources())
+    altered = json.dumps({**collect_sources(), "_pdv.extra": ["# new module", False]})
+
+    digest = lambda text: hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+    assert digest(first) != digest(altered)

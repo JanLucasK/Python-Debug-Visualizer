@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import zlib
 from pathlib import Path
@@ -35,12 +36,14 @@ def build_bootstrap_expression() -> str:
     """Produce the exact single expression the extension evaluates in the debuggee."""
     from _pdv.version import RUNTIME_VERSION
 
-    packed = base64.b64encode(
-        zlib.compress(json.dumps(collect_sources()).encode("utf-8"), 9)
-    ).decode("ascii")
+    sources = json.dumps(collect_sources())
+    packed = base64.b64encode(zlib.compress(sources.encode("utf-8"), 9)).decode("ascii")
+    build = "{}+{}".format(
+        RUNTIME_VERSION, hashlib.sha256(sources.encode("utf-8")).hexdigest()[:12]
+    )
 
     loader = BOOTSTRAP.read_text(encoding="utf-8")
-    loader = loader.replace("@@SOURCES@@", packed).replace("@@VERSION@@", RUNTIME_VERSION)
+    loader = loader.replace("@@SOURCES@@", packed).replace("@@BUILD@@", build)
 
     blob = base64.b64encode(zlib.compress(loader.encode("utf-8"), 9)).decode("ascii")
     # The trailing `{}` gives exec its own globals, so the loader's module-level
