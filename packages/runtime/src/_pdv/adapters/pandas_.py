@@ -233,10 +233,17 @@ def _build_frame(pd: Any, np: Any, frame: Any, options: Dict[str, Any]) -> Captu
     warnings: List[str] = []
 
     numeric = [name for name in frame.columns if _is_numeric(np, frame[name])]
-    skipped = len(frame.columns) - len(numeric)
+    skipped = [str(name) for name in frame.columns if name not in numeric]
     if skipped:
+        # Named, not just counted. "1 column skipped" leaves the reader to work
+        # out which one, and the whole point of saying anything is to spare them
+        # wondering whether a column is missing or merely empty.
         warnings.append(
-            "{} non-numeric column{} skipped.".format(skipped, "" if skipped == 1 else "s")
+            "{} non-numeric column{} skipped: {}.".format(
+                len(skipped),
+                "" if len(skipped) == 1 else "s",
+                ", ".join(skipped[:5]) + ("…" if len(skipped) > 5 else ""),
+            )
         )
 
     if not numeric:
