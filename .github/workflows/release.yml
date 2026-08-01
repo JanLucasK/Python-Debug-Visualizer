@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# Publishing is irreversible: a Marketplace version can be overwritten but never
+# withdrawn. So the full test suite runs again here rather than trusting that CI
+# passed on the commit -- a tag can point anywhere.
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest numpy pandas debugpy
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: python -m pytest packages/runtime/tests -q
+
+      - name: Tag must match the manifest version
+        # Publishing 0.1.0 from a tag that says v0.2.0 produces a release nobody
+        # can trace back to a commit.
+        run: |
+          manifest=$(node -p "require('./packages/extension/package.json').version")
+          tag=${GITHUB_REF_NAME#v}
+          if [ "$manifest" != "$tag" ]; then
+            echo "tag $tag does not match manifest version $manifest" >&2
+            exit 1
+          fi
+
+  publish:
+    name: publish
+    needs: [verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # for the GitHub release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The package script builds first, so the artefact cannot be stale.
+      - run: pnpm --filter python-debug-visualizer run package
+
+      - name: Publish to the VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        # `pnpm --filter … exec` already runs inside packages/extension, so the
+        # glob is relative to it. Spelling the full path here would have looked
+        # for packages/extension/packages/extension/…
+        run: pnpm --filter python-debug-visualizer exec vsce publish --no-dependencies --packagePath *.vsix
+
+      - name: Publish to Open VSX
+        # VSCodium, Cursor and Gitpod install from here rather than from the
+        # Marketplace, whose terms only cover Microsoft's own builds.
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: pnpm --filter python-debug-visualizer exec ovsx publish *.vsix --pat "$OVSX_PAT"
+
+      - name: Attach the VSIX to the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packages/extension/*.vsix
+          body_path: packages/extension/CHANGELOG.md
+          generate_release_notes: true

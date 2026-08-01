@@ -1,10 +1,19 @@
 # Python Debug Visualizer
 
+[![CI](https://github.com/JanLucasK/Python-Debug-Visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/JanLucasK/Python-Debug-Visualizer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Plot and inspect NumPy arrays, Pandas DataFrames and tensors **while you are
 stopped in the debugger**. Type an expression, see the data.
 
-> **Status: early development, and usable.** Everything below works and is
-> tested. Not yet on the Marketplace — build a VSIX with `pnpm package`.
+![Two arrays overlaid in one plot](docs/images/01-two-series.png)
+
+*Two arrays from one expression. The gap at x ≈ 2000 is real — 40 NaN, and the
+statistics say so. The spikes at 1234 and 3999 are single samples the plot is
+far too coarse to draw, which is exactly why `min` and `max` are there.*
+
+> **Status: 0.1.0.** Everything below works and is covered by tests, including
+> runs against a real debugpy session.
 >
 > One claim is reasoned rather than measured: it has not been run against a real
 > Remote-SSH or dev-container setup. See [docs/architecture.md](docs/architecture.md).
@@ -42,6 +51,28 @@ Tensors are handled properly rather than nominally: a tensor with
 `requires_grad` is readable, a CUDA tensor is copied without disturbing the
 program, `bfloat16` widens instead of failing, and a sparse tensor is described
 rather than silently densified into memory you may not have.
+
+## Several series, six views
+
+Each expression is one pane, so combining values means making the expression
+produce them — a plain dict needs no library at all.
+
+```python
+{"raw": noisy, "smoothed": smoothed}   # a dict
+prices[["close", "sma20"]]             # DataFrame columns
+np.column_stack([signal, smoothed])    # a narrow array
+```
+
+![A narrow matrix as one line per column](docs/images/02-matrix-lines.png)
+
+The view is chosen per pane, or suggested from the value.
+
+| | |
+|:--|:--|
+| ![Histogram](docs/images/03-histogram.png) | ![Table](docs/images/04-table.png) |
+| Binning happens in the debuggee, so five million points become sixty bars before anything crosses the wire — and the pane says why the bars sum to less than the count. | A million cells would be a million DOM nodes, so only the visible rows exist. |
+| ![DataFrame](docs/images/05-dataframe.png) | ![Heatmap](docs/images/06-heatmap.png) |
+| Every numeric column becomes a line on a shared time axis, and the text column is reported rather than dropped. Note the trap: `volume` flattens the other two, so use `prices[["close", "sma20"]]` when units differ. | The same frame as a colour matrix, with its scale and a note that cells were stretched to fit. |
 
 ## How it works
 
@@ -82,7 +113,13 @@ identically local, over SSH, in a dev container and in Codespaces.
 | [packages/extension/](packages/extension/) | Extension host: debug session, transports, panels |
 | [packages/webview/](packages/webview/) | UI: Preact, uPlot, canvas heatmaps |
 
-See [docs/architecture.md](docs/architecture.md) for the full design.
+See [docs/architecture.md](docs/architecture.md) for the full design, and
+[examples/README.md](examples/README.md) for a guided tour of every feature.
+
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the setup and the one rule the design
+follows from: a debugging tool that misleads you is worse than no tool.
 
 ## Development
 

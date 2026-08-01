@@ -2,10 +2,9 @@
   "name": "python-debug-visualizer",
   "displayName": "Python Debug Visualizer",
   "description": "Plot and inspect NumPy arrays, Pandas DataFrames and tensors live while debugging Python.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "janlucask",
   "license": "MIT",
-  "private": true,
   "engines": {
     "vscode": "^1.89.0"
   },
@@ -113,6 +112,7 @@
     "@types/node": "^20.17.10",
     "@types/vscode": "^1.89.0",
     "@vscode/vsce": "^3.2.1",
+    "ovsx": "^0.10.1",
     "esbuild": "^0.24.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

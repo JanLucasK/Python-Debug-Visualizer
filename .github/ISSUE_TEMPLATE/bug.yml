@@ -1,0 +1,63 @@
+name: Bug report
+description: Something showed the wrong thing, or nothing
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful thing you can include is the diagnostic log. It says
+        what reached the plot, which separates a data problem from a rendering
+        one — and that distinction has taken several rounds to establish in the
+        past.
+
+        **Output panel → "Python Debug Visualizer" → gear icon → Debug**, then
+        refresh the pane.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you plotted, what you expected, and what you got.
+      placeholder: |
+        Expression: prices[["close", "sma20"]]
+        Expected: two lines
+        Got: axes and a legend, no lines
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Diagnostic log
+      description: The `capture …` and `webview: plot …` lines from the output channel.
+      render: text
+
+  - type: input
+    id: value
+    attributes:
+      label: What the value is
+      description: Type, shape and dtype, if you can say. A snippet that reproduces it is even better.
+      placeholder: pandas DataFrame, (400, 4), DatetimeIndex
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: extension 0.1.0, VS Code 1.99, Python 3.12, numpy 2.1, pandas 2.2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: setting
+    attributes:
+      label: Where is the debuggee running?
+      description: Remote setups are the least tested part, so this matters more than usual.
+      options:
+        - Local
+        - Remote-SSH
+        - Dev container
+        - WSL
+        - Codespaces
+        - Other
+    validations:
+      required: true

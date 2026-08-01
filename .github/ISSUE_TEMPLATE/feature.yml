@@ -1,0 +1,19 @@
+name: Feature request
+description: Something you wanted to see and could not
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What were you trying to find out?
+      description: >
+        The debugging question behind the request, not only the feature. Knowing
+        what you were trying to see often points at a simpler answer than the
+        one being asked for.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you had in mind
