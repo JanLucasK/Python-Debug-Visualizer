@@ -4,6 +4,7 @@ import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import { type DecodedCapture, xValuesFor } from "../decode";
 import { MAX_SERIES, onThemeChange, readTheme, seriesColor } from "../theme";
+import { post } from "../vscode";
 import { type Range, zoomRequest } from "./range";
 
 interface Props {
@@ -146,6 +147,7 @@ export function LinePlot({
     const build = () => {
       plot.current?.destroy();
       programmatic.current = true;
+      describePlot(element, latest.current, timeAxis);
       plot.current = createPlot(element, latest.current, height, {
         mode,
         timeAxis,
@@ -332,6 +334,33 @@ function forPlot(entry: Series): Float64Array | (number | null)[] {
   if (clean) return entry.values;
 
   return Array.from(entry.values, (value) => (Number.isFinite(value) ? value : null));
+}
+
+/**
+ * Report what is about to be drawn, to the extension's output channel.
+ *
+ * The webview has no log anyone can reach, so when a plot comes out empty there
+ * is no way to tell from outside whether the data, the layout or the renderer
+ * is at fault. This says so directly, at debug level, and costs one string per
+ * rebuild.
+ */
+function describePlot(container: HTMLElement, series: Series[], timeAxis: boolean): void {
+  const summary = series.map((entry) => {
+    const finite = Array.from(entry.values).filter(Number.isFinite);
+    const first = finite[0];
+    const last = finite[finite.length - 1];
+    return (
+      `${entry.label}: n=${entry.values.length} finite=${finite.length} ` +
+      `range=${first?.toPrecision(6)}..${last?.toPrecision(6)}`
+    );
+  });
+
+  post({
+    type: "log",
+    text:
+      `plot ${container.clientWidth}x${container.clientHeight} timeAxis=${timeAxis} ` +
+      `series=[${summary.join(" | ")}]`,
+  });
 }
 
 export function toPlotData(series: Series[]): uPlot.AlignedData {

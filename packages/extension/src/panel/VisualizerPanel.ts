@@ -135,6 +135,9 @@ export class VisualizerPanel implements vscode.Disposable {
         await this.refresh(zoomed, { force: true });
         break;
       }
+      case "log":
+        log.debug(`webview: ${message.text}`);
+        break;
       case "revealTraceback":
         log.show();
         break;

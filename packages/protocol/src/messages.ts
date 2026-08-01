@@ -70,7 +70,15 @@ export type WebviewToExtension =
    * `range` of null means the user zoomed back out.
    */
   | { type: "zoom"; paneId: string; range: [number, number] | null }
-  | { type: "revealTraceback"; paneId: string };
+  | { type: "revealTraceback"; paneId: string }
+  /**
+   * A diagnostic line for the output channel.
+   *
+   * The webview has no log the user can reach, so a rendering problem there is
+   * invisible from the outside -- which is exactly the situation this was added
+   * for. Only sent when the extension asks for it.
+   */
+  | { type: "log"; text: string };
 
 export type ExtensionToWebview =
   | {

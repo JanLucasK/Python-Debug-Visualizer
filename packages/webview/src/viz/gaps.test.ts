@@ -80,3 +80,24 @@ describe("the heatmap fills its box", () => {
     expect(cellDistortion(grid(200, 300), 600, 360)).toBeLessThan(2);
   });
 });
+
+describe("a heatmap can be built from named columns", () => {
+  it("weaves a grid from a frame's per-column channels", async () => {
+    // A DataFrame carries one channel per column rather than one flat block,
+    // so the grid has to be assembled. Refusing to draw a correlation matrix
+    // because it arrived as a DataFrame would be an arbitrary restriction.
+    const { collectGrid } = await import("./Heatmap");
+    const { decodeChannels } = await import("../decode");
+    const { frameCapture } = await import("./test-captures");
+
+    const capture = frameCapture();
+    const grid = collectGrid(capture.descriptor, decodeChannels(capture.descriptor, capture.bytes));
+
+    expect(grid, "no grid was built for a DataFrame").toBeDefined();
+    expect(grid?.cols).toBe(2);
+    expect(grid?.rows).toBe(400);
+    // Row-major: the first row holds the first value of each column.
+    expect(grid?.values[0]).toBeCloseTo(100);
+    expect(grid?.values[1]).toBeCloseTo(90);
+  });
+});

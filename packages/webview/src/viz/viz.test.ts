@@ -198,10 +198,13 @@ describe("frames and matrices are told apart", () => {
     expect(resolveViz(frame(), "auto")?.kind).toBe("line");
   });
 
-  it("does not offer a heatmap for a DataFrame", () => {
-    // Its columns are unrelated quantities; one colour scale would compare
-    // prices against volumes.
-    expect(kinds(availableViz(frame()))).not.toContain("heatmap");
+  it("offers a heatmap for a DataFrame without defaulting to it", () => {
+    // Availability is the user's call: a correlation matrix is a fine heatmap
+    // whichever container it arrived in. The *suggestion* is ours, and unrelated
+    // columns on one colour scale would compare prices against volumes.
+    expect(kinds(availableViz(frame()))).toContain("heatmap");
+    expect(resolveViz(frame(), "auto")?.kind).toBe("line");
+    expect(resolveViz(frame(), "heatmap")?.kind).toBe("heatmap");
   });
 
   it("offers a heatmap for a raw matrix", () => {

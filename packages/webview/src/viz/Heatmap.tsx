@@ -138,17 +138,39 @@ interface Range {
   high: number;
 }
 
-function collectGrid(descriptor: Descriptor, decoded: DecodedCapture): Grid | undefined {
+export function collectGrid(descriptor: Descriptor, decoded: DecodedCapture): Grid | undefined {
   const shape = descriptor.shape;
   if (!shape || shape.length !== 2) return undefined;
-
-  const channel = decoded.channels.get("value") ?? decoded.channels.get("y");
-  if (!channel) return undefined;
-
   const [rows, cols] = shape as [number, number];
-  if (channel.values.length < rows * cols) return undefined;
 
-  return { rows, cols, values: channel.values };
+  // A raw matrix arrives row-major in one channel.
+  const flat = decoded.channels.get("value") ?? decoded.channels.get("y");
+  if (flat && flat.values.length >= rows * cols) {
+    return { rows, cols, values: flat.values };
+  }
+
+  // A frame or a mapping arrives as one channel per column, so the grid has to
+  // be woven from them. Worth doing: a correlation matrix or a set of readings
+  // sharing a unit is a perfectly good heatmap, and refusing to draw one just
+  // because it arrived as a DataFrame would be an arbitrary restriction.
+  const columns = descriptor.channels
+    .filter((channel) => channel.role === "y")
+    .map((channel) => decoded.channels.get(channel.name))
+    .filter((channel): channel is NonNullable<typeof channel> => channel !== undefined);
+
+  if (columns.length === 0) return undefined;
+
+  const height = Math.min(rows, ...columns.map((column) => column.values.length));
+  const values = new Float64Array(height * columns.length);
+  for (let row = 0; row < height; row++) {
+    for (let column = 0; column < columns.length; column++) {
+      values[row * columns.length + column] = (columns[column] as { values: Float64Array }).values[
+        row
+      ] as number;
+    }
+  }
+
+  return { rows: height, cols: columns.length, values };
 }
 
 /**

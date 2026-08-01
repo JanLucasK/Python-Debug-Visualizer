@@ -6,14 +6,29 @@ interface VsCodeApi {
   setState(state: unknown): void;
 }
 
-declare function acquireVsCodeApi(): VsCodeApi;
+declare const acquireVsCodeApi: (() => VsCodeApi) | undefined;
 
-// `acquireVsCodeApi` may only be called once per webview, so the handle is
-// captured here and shared.
-const api = acquireVsCodeApi();
+let api: VsCodeApi | undefined;
+
+/**
+ * The host handle, acquired on first use.
+ *
+ * `acquireVsCodeApi` may only be called once per webview, so the result is
+ * cached. Acquiring it lazily rather than at module scope matters as well:
+ * anything importing this file transitively -- which is most of the UI -- would
+ * otherwise fail to load outside a webview, and take every test with it.
+ *
+ * Outside one there is no host, and posting is a no-op rather than an error.
+ */
+function host(): VsCodeApi | undefined {
+  if (api) return api;
+  if (typeof acquireVsCodeApi !== "function") return undefined;
+  api = acquireVsCodeApi();
+  return api;
+}
 
 export function post(message: WebviewToExtension): void {
-  api.postMessage(message);
+  host()?.postMessage(message);
 }
 
 export function onMessage(handler: (message: ExtensionToWebview) => void): () => void {

@@ -61,11 +61,14 @@ registerViz({
 registerViz({
   kind: "heatmap",
   label: "Heatmap",
-  // Only a raw matrix. A DataFrame is also [rows, columns], but its columns
-  // are unrelated quantities, and colouring them on one scale would compare
-  // prices against volumes.
-  available: (descriptor) =>
-    hasNumericData(descriptor) && descriptor.kind === "ndarray" && isTwoDimensional(descriptor),
+  // Anything two-dimensional and numeric, including a DataFrame: a correlation
+  // matrix or a set of readings sharing a unit is a good heatmap whichever
+  // container it arrived in.
+  //
+  // It is not the *default* for a frame, because unrelated columns on one
+  // colour scale compares prices against volumes -- but availability is the
+  // user's call and the suggestion is ours.
+  available: (descriptor) => hasNumericData(descriptor) && isTwoDimensional(descriptor),
   component: Heatmap,
 });
 
