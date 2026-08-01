@@ -4,6 +4,7 @@ import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import { type DecodedCapture, xValuesFor } from "../decode";
 import { MAX_SERIES, onThemeChange, readTheme, seriesColor } from "../theme";
+import { type Range, zoomRequest } from "./range";
 
 interface Props {
   descriptor: Descriptor;
@@ -92,6 +93,25 @@ export function LinePlot({
   zoomHandler.current = onZoom;
 
   /**
+   * The x range this capture already covers, if it was captured for a window.
+   *
+   * uPlot reports a scale change whenever the scale changes, including the one
+   * it performs while building itself and the one that follows new data. After
+   * a zoom refetch the data *is* the window, so that initial scale looks
+   * exactly like a user zooming to the window they are already in. Reporting it
+   * asks for the same range again, and reporting the plain full range asks to
+   * zoom out -- either way the view snaps back and the zoom undoes itself.
+   *
+   * So scale changes are only forwarded when they differ from what this capture
+   * already shows.
+   */
+  const applied = useRef<Range | null>(null);
+  applied.current = descriptor.window ? [descriptor.window.from, descriptor.window.to] : null;
+
+  /** True while uPlot is building or receiving data, rather than reacting to a drag. */
+  const programmatic = useRef(true);
+
+  /**
    * Whether the x axis carries timestamps rather than positions.
    *
    * Only true when the runtime actually sent index values: a DatetimeIndex that
@@ -117,12 +137,19 @@ export function LinePlot({
 
     const build = () => {
       plot.current?.destroy();
+      programmatic.current = true;
       plot.current = createPlot(element, latest.current, height, {
         mode,
         timeAxis,
         logX,
         logY,
-        onZoom: (range) => zoomHandler.current?.(range),
+        onReady: () => {
+          programmatic.current = false;
+        },
+        onZoom: (range) => {
+          const request = zoomRequest(range, applied.current, programmatic.current);
+          if (request !== undefined) zoomHandler.current?.(request);
+        },
       });
     };
 
@@ -146,7 +173,11 @@ export function LinePlot({
 
   useEffect(() => {
     if (!plot.current || series.length === 0) return;
+    // setData rescales, which fires the same hook. That is the plot following
+    // its data, not the user moving the view.
+    programmatic.current = true;
     plot.current.setData(toPlotData(series));
+    programmatic.current = false;
   }, [series]);
 
   if (series.length === 0) {
@@ -306,6 +337,8 @@ interface PlotSettings {
   timeAxis: boolean;
   logX: boolean;
   logY: boolean;
+  /** Fired once the plot has finished building itself. */
+  onReady(): void;
   onZoom(range: [number, number] | null): void;
 }
 
@@ -313,7 +346,7 @@ function createPlot(
   container: HTMLDivElement,
   series: Series[],
   height: number,
-  { mode, timeAxis, logX, logY, onZoom }: PlotSettings,
+  { mode, timeAxis, logX, logY, onReady, onZoom }: PlotSettings,
 ): uPlot {
   const theme = readTheme();
   const width = container.clientWidth || 600;
@@ -343,6 +376,7 @@ function createPlot(
       y: logY ? { distr: 3 as const } : {},
     },
     hooks: {
+      ready: [() => onReady()],
       setScale: [
         (self: uPlot, key: string) => {
           if (key !== "x") return;
@@ -350,7 +384,11 @@ function createPlot(
           const min = scale?.min;
           const max = scale?.max;
           if (min === undefined || max === undefined) return;
-          // A full-range scale means the user zoomed back out.
+
+          // Covering everything the plot holds means the user zoomed back out.
+          // The caller decides whether that is a change worth acting on -- for a
+          // capture that is already a window, "everything it holds" is the
+          // window, not the whole value.
           const full = self.data[0];
           const wholeRange =
             full === undefined ||
