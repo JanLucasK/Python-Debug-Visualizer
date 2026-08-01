@@ -27,6 +27,11 @@ DEFAULT_MAX_POINTS = 20_000
 #: beyond what any panel can resolve.
 DEFAULT_MAX_CELLS = 1024 * 1024
 
+#: At or below this many columns, a tall 2-D array reads as a set of series
+#: rather than as an image. Matches the webview's palette size, since that is
+#: how many lines it can tell apart.
+NARROW_MATRIX_COLUMNS = 8
+
 _INT_WIRE = {1: "i8", 2: "i16", 4: "i32", 8: "i64"}
 _UINT_WIRE = {1: "u8", 2: "u16", 4: "u32", 8: "u64"}
 _SUPPORTED_TIME_UNITS = ("s", "ms", "us", "ns")
@@ -452,7 +457,14 @@ def _build_2d(
         channels=builder.channels,
         decimation=None,
         truncated=truncated,
-        suggested_viz=["heatmap", "grid", "histogram"],
+        # A few columns of many rows is `column_stack`, not a picture: as a
+        # heatmap it is a two-pixel-wide smear, so lines are the useful default.
+        # A genuinely wide matrix stays a heatmap.
+        suggested_viz=(
+            ["line", "grid", "heatmap", "histogram"]
+            if cols <= NARROW_MATRIX_COLUMNS and rows > cols
+            else ["heatmap", "grid", "histogram"]
+        ),
     )
     return Capture(descriptor=descriptor, payload=builder.build(), warnings=warnings)
 

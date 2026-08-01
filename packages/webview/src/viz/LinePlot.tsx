@@ -207,7 +207,7 @@ export function LinePlot({
   );
 }
 
-interface Series {
+export interface Series {
   label: string;
   values: Float64Array;
   x: Float64Array;
@@ -217,7 +217,7 @@ interface Series {
   dimmed?: boolean;
 }
 
-function collectSeries(descriptor: Descriptor, decoded: DecodedCapture): Series[] {
+export function collectSeries(descriptor: Descriptor, decoded: DecodedCapture): Series[] {
   const series: Series[] = [];
 
   for (const channel of descriptor.channels) {
@@ -303,7 +303,7 @@ function labelFor(descriptor: Descriptor, channelName: string): string {
  * with gaps where it has no point. The common case — one capture, one x array —
  * skips all of this.
  */
-function toPlotData(series: Series[]): uPlot.AlignedData {
+export function toPlotData(series: Series[]): uPlot.AlignedData {
   if (series.length === 0) return [[]] as unknown as uPlot.AlignedData;
 
   const reference = series[0]?.x as Float64Array;
@@ -341,7 +341,7 @@ function project(series: Series, axis: Float64Array): (number | null)[] {
   return Array.from(axis, (position) => values.get(position) ?? null);
 }
 
-interface PlotSettings {
+export interface PlotSettings {
   mode: "line" | "scatter";
   timeAxis: boolean;
   logX: boolean;
@@ -353,7 +353,7 @@ interface PlotSettings {
   hasWindow(): boolean;
 }
 
-function createPlot(
+export function createPlot(
   container: HTMLDivElement,
   series: Series[],
   height: number,

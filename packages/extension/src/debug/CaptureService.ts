@@ -164,6 +164,16 @@ export class CaptureService {
       });
     }
 
+    // Logged because an empty plot has several unrelated causes -- no bytes, a
+    // channel that failed to decode, a window that selected nothing -- and they
+    // are indistinguishable on screen. This line tells them apart.
+    log.debug(
+      `capture ${expression}: kind=${descriptor.kind} shape=${JSON.stringify(descriptor.shape)} ` +
+        `channels=[${descriptor.channels.map((c) => `${c.name}:${c.role}:${c.length}`).join(", ")}] ` +
+        `bytes=${bytes?.length ?? 0} window=${descriptor.window ? "yes" : "no"} ` +
+        `payload=${payload.encoding} in ${elapsedMs} ms`,
+    );
+
     return {
       expression,
       descriptor,

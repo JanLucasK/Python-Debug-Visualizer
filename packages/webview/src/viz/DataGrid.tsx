@@ -101,12 +101,17 @@ interface Table {
   valueAt(row: number, column: Column): number | undefined;
 }
 
-function collectTable(descriptor: Descriptor, decoded: DecodedCapture): Table | undefined {
+export function collectTable(descriptor: Descriptor, decoded: DecodedCapture): Table | undefined {
   const shape = descriptor.shape;
 
-  // A 2-D array is stored row-major in one channel, so a column is a strided
-  // read rather than a channel of its own.
-  if (shape && shape.length === 2) {
+  // A raw 2-D array is stored row-major in one channel, so a column is a
+  // strided read rather than a channel of its own.
+  //
+  // Restricted to `ndarray`: a DataFrame also reports [rows, columns] but
+  // carries one channel per column, named after it. Taking this branch for a
+  // frame looked for a channel called "value", found none, and rendered "no
+  // values to tabulate" for every DataFrame there is.
+  if (descriptor.kind === "ndarray" && shape && shape.length === 2) {
     const channel = decoded.channels.get("value") ?? decoded.channels.get("y");
     if (!channel) return undefined;
 
