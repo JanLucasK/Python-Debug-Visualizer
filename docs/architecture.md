@@ -9,9 +9,31 @@ a preference.
 
 | Boundary | Constraint | Response |
 |---|---|---|
-| debuggee → debug adapter | debugpy truncates evaluate results at 64 KiB (`SafeRepr.maxstring_outer = 2**16`) | Evaluate with `context: "clipboard"`, where debugpy raises the limit to `2**64` |
+| debuggee → debug adapter | debugpy truncates evaluate results at 64 KiB (`SafeRepr.maxstring_outer = 2**16`) | Evaluate with `context: "clipboard"` **and** `format: {rawString: true}` |
 | debug adapter → extension | The response is the *repr* of the value, so quotes and backslashes come back escaped | Encode the whole response as base64, whose alphabet repr never escapes |
 | extension → webview | Under Remote-SSH the extension host is remote and the webview is local, so `localhost` differs | Never open a socket from the webview; push everything via `postMessage` |
+
+### Why both truncation bypasses
+
+Measured against debugpy 1.8.21 in
+`packages/runtime/tests/test_dap_integration.py`, not taken on faith:
+
+| context | `rawString` | 8 MB array |
+|---|---|---|
+| `repl` | absent | **truncated** to ~64 KiB — envelope undecodable |
+| `clipboard` | absent | full |
+| `repl` | set | full |
+| `clipboard` | set | full |
+
+Either bypass alone is sufficient today, so the extension sends both. `rawString`
+is a debugpy extension to DAP with no specification behind it, and the clipboard
+carve-out is one branch in pydevd; losing either one silently would produce a
+*corrupted* plot rather than a missing one, which is the failure mode worth
+spending a redundant request field on.
+
+Clipboard context earns its place for a second reason: unlike `repl`, it does
+not redirect the debuggee's stdout into the Debug Console, so installing the
+runtime produces no output for the user to wonder about.
 
 ## Data flow
 
