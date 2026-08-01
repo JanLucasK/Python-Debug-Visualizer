@@ -1,0 +1,14 @@
+# Everything is bundled into dist/ by esbuild, so sources and build machinery
+# only make the download bigger.
+src/**
+scripts/**
+esbuild.mjs
+tsconfig.json
+.vscode/**
+node_modules/**
+
+# Source maps are three times the size of the code they describe. Nothing here
+# re-includes dist/, so these patterns reach into it as intended -- last match
+# wins in this file, exactly as in .gitignore.
+**/*.map
+**/*.ts
