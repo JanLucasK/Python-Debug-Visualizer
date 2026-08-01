@@ -35,9 +35,12 @@ export class PaneStore {
     return pane;
   }
 
-  update(pane: PaneSpec): void {
+  /** Applies the change and returns the pane as it was, so callers can diff. */
+  update(pane: PaneSpec): PaneSpec | undefined {
+    const before = this.panes.find((existing) => existing.id === pane.id);
     this.panes = this.panes.map((existing) => (existing.id === pane.id ? pane : existing));
     void this.persist();
+    return before;
   }
 
   remove(paneId: string): void {

@@ -5,7 +5,7 @@ import type {
   ResolvedCapture,
   SessionState,
 } from "@python-debug-visualizer/protocol";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { onMessage, post } from "../vscode";
 import { Pane } from "./Pane";
 
@@ -23,15 +23,37 @@ export function App() {
   const [errors, setErrors] = useState<Record<string, CaptureError>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
 
+  // Mirrors `panes` so the message handler can diff against the previous list
+  // without depending on it, which would re-subscribe on every change.
+  const previousPanes = useRef<PaneSpec[]>([]);
+
   useEffect(() => {
+    /**
+     * An error card describes a specific expression. Once that expression is
+     * edited the card no longer applies to anything on screen, so it goes --
+     * unlike the plot, which is merely dimmed until the next capture replaces
+     * it.
+     */
+    const adoptPanes = (next: PaneSpec[]) => {
+      const rewritten = next.filter((pane) => {
+        const before = previousPanes.current.find((candidate) => candidate.id === pane.id);
+        return before !== undefined && before.expression !== pane.expression;
+      });
+      previousPanes.current = next;
+      setPanes(next);
+      if (rewritten.length > 0) {
+        setErrors((existing) => rewritten.reduce((acc, pane) => omit(acc, pane.id), existing));
+      }
+    };
+
     const stop = onMessage((message: ExtensionToWebview) => {
       switch (message.type) {
         case "init":
-          setPanes(message.panes);
+          adoptPanes(message.panes);
           setSession(message.session);
           break;
         case "panes":
-          setPanes(message.panes);
+          adoptPanes(message.panes);
           break;
         case "session":
           setSession(message.session);

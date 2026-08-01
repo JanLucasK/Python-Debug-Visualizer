@@ -84,9 +84,15 @@ export class VisualizerPanel implements vscode.Disposable {
         this.addExpression(message.expression);
         break;
       case "updatePane": {
-        this.store.update(message.pane);
+        const before = this.store.update(message.pane);
         this.post({ type: "panes", panes: this.store.list() });
-        await this.refresh(message.pane);
+
+        // Editing the expression asks a different question, so it is answered
+        // even for a frozen pane -- otherwise freezing would silently swallow
+        // the edit. Merely toggling `frozen` is not a new question, and must
+        // not re-evaluate: that is the whole point of freezing.
+        const rewritten = before !== undefined && before.expression !== message.pane.expression;
+        await this.refresh(message.pane, { force: rewritten });
         break;
       }
       case "removePane":

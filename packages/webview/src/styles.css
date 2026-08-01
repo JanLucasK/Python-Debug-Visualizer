@@ -129,14 +129,35 @@ button.secondary:hover {
   border-bottom: 1px solid var(--vscode-panel-border);
 }
 
+/*
+ * Reads as a label, behaves as a field. Showing a bordered input for every pane
+ * would turn a page of plots into a page of forms, so the affordance only
+ * appears on hover and focus.
+ */
 .pane-expression {
   flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
   font-family: var(--vscode-editor-font-family);
   font-size: var(--vscode-editor-font-size);
   color: var(--vscode-textPreformat-foreground);
-  overflow: hidden;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.pane-expression:hover {
+  border-color: var(--vscode-input-border, var(--vscode-panel-border));
+}
+
+.pane-expression:focus {
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border-color: transparent;
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+  text-overflow: clip;
 }
 
 .pane-body {

@@ -1,5 +1,5 @@
 import type { CaptureError, PaneSpec, ResolvedCapture } from "@python-debug-visualizer/protocol";
-import { useMemo } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { decodeChannels } from "../decode";
 import { LinePlot } from "../viz/LinePlot";
 import { post } from "../vscode";
@@ -18,12 +18,16 @@ export function Pane({ pane, capture, error, busy }: Props) {
     [capture],
   );
 
+  // After the expression is edited, the plot on screen still describes the old
+  // one until the next evaluation lands. It stays visible — clearing it would
+  // flicker on every debugger step — but it is dimmed, so it never reads as an
+  // answer to the expression now in the header.
+  const stale = capture !== undefined && capture.expression !== pane.expression;
+
   return (
     <section className="pane">
       <header className="pane-header">
-        <span className="pane-expression" title={pane.expression}>
-          {pane.expression}
-        </span>
+        <ExpressionInput pane={pane} />
         <button
           type="button"
           className="icon-button"
@@ -52,7 +56,7 @@ export function Pane({ pane, capture, error, busy }: Props) {
 
       {capture && <StatsStrip descriptor={capture.descriptor} />}
 
-      <div className={busy ? "pane-body busy" : "pane-body"}>
+      <div className={busy || stale ? "pane-body busy" : "pane-body"}>
         {error && <ErrorCard error={error} paneId={pane.id} />}
 
         {!error && !capture && <p className="empty-state">Waiting for the debugger to stop…</p>}
@@ -74,6 +78,59 @@ export function Pane({ pane, capture, error, busy }: Props) {
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * The pane's expression, editable in place.
+ *
+ * Refining an expression is the normal way this tool gets used — you plot
+ * `noisy`, then want `noisy[:200]`. Retyping it in the bar at the top would add
+ * a second pane instead of changing this one, so the header is where the edit
+ * belongs.
+ */
+function ExpressionInput({ pane }: { pane: PaneSpec }) {
+  const [draft, setDraft] = useState(pane.expression);
+  const [editing, setEditing] = useState(false);
+
+  // Adopt outside changes only while not editing. Captures keep arriving as the
+  // debugger steps, and a re-render must not overwrite half-typed input.
+  useEffect(() => {
+    if (!editing) setDraft(pane.expression);
+  }, [pane.expression, editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim();
+    if (!next) {
+      setDraft(pane.expression); // an empty expression would just error; treat it as a cancel
+      return;
+    }
+    if (next !== pane.expression) {
+      post({ type: "updatePane", pane: { ...pane, expression: next } });
+    }
+  };
+
+  return (
+    <input
+      className="pane-expression"
+      value={draft}
+      title={pane.expression}
+      spellcheck={false}
+      aria-label="Expression"
+      onFocus={() => setEditing(true)}
+      onInput={(event) => setDraft((event.target as HTMLInputElement).value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          (event.target as HTMLInputElement).blur(); // blur commits
+        } else if (event.key === "Escape") {
+          setDraft(pane.expression);
+          setEditing(false);
+          (event.target as HTMLInputElement).blur();
+        }
+      }}
+    />
   );
 }
 
