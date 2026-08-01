@@ -312,10 +312,19 @@ button.secondary:hover {
 
 /* --- heatmap --- */
 
+/*
+ * A fixed box the matrix is fitted into, rather than a full-width canvas whose
+ * height follows the aspect ratio. A tall array used to become a page-long
+ * strip that could not be seen at once.
+ */
 .heatmap-canvas-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: auto;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 2px;
+  background: var(--vscode-editor-background);
 }
 
 /*
@@ -323,10 +332,10 @@ button.secondary:hover {
  * heatmap with interpolation blends neighbouring cells into values that are not
  * in the array, and a single anomalous cell is usually the thing being hunted.
  */
+/* Size comes from the component, which fits it to the measured box. */
 .heatmap-canvas {
   display: block;
-  width: 100%;
-  height: auto;
+  flex: 0 0 auto;
   image-rendering: pixelated;
 }
 
@@ -335,6 +344,13 @@ button.secondary:hover {
   align-items: center;
   gap: 12px;
   margin-top: 6px;
+}
+
+.heatmap-caption {
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
 }
 
 .colorbar {

@@ -133,3 +133,30 @@ def test_no_window_leaves_captures_untouched(np, pd):
         document, _ = capture(value)
         assert document["descriptor"]["window"] is None, label
         assert series_lengths(document) == [1000] * expected, label
+
+
+def test_a_narrow_matrix_is_windowed_and_says_so(np):
+    """`np.column_stack([a, b])` is drawn as lines, so it must zoom like them.
+
+    The window field is not cosmetic: without it the webview cannot tell that
+    the capture it just received *is* the range it asked for, so it asks again,
+    and the zoom never settles.
+    """
+    a = np.arange(5000.0)
+    document, _ = capture(np.column_stack([a, a * 2]), range=[1000, 1200])
+
+    assert document["descriptor"]["shape"] == [201, 2]
+    assert document["descriptor"]["window"] is not None, "the webview would loop without this"
+    assert document["descriptor"]["window"]["from"] == 1000.0
+
+    # Row positions travel, or the lines would restart at zero.
+    channels = {c["name"]: c for c in document["descriptor"]["channels"]}
+    assert channels["x"]["length"] == 201
+
+
+def test_an_unwindowed_matrix_carries_no_positions(np):
+    a = np.arange(500.0)
+    document, _ = capture(np.column_stack([a, a * 2]))
+
+    assert document["descriptor"]["window"] is None
+    assert "x" not in {c["name"] for c in document["descriptor"]["channels"]}

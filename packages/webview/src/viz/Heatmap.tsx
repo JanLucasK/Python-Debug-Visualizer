@@ -1,5 +1,5 @@
 import type { Descriptor } from "@python-debug-visualizer/protocol";
-import { useLayoutEffect, useMemo, useRef } from "preact/hooks";
+import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { DecodedCapture } from "../decode";
 import {
   COLORMAP_NAMES,
@@ -29,9 +29,25 @@ const NON_FINITE_RGB: readonly [number, number, number] = [120, 120, 120];
  * staying a single hard square is the entire reason to look at a heatmap while
  * debugging.
  */
-export function Heatmap({ descriptor, decoded, maxHeight = 420, colormap: chosen }: Props) {
+export function Heatmap({ descriptor, decoded, maxHeight = 360, colormap: chosen }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   const colormap = isColormap(chosen) ? chosen : defaultColormap(descriptor);
+
+  // Measured rather than assumed: the pane sits in a grid whose column count
+  // follows the panel width, so the space available changes as the user drags
+  // the panel around.
+  const [width, setWidth] = useState(600);
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    setWidth(element.clientWidth || 600);
+    return () => observer.disconnect();
+  }, []);
 
   const grid = useMemo(() => collectGrid(descriptor, decoded), [descriptor, decoded]);
   const range = useMemo(() => resolveRange(descriptor, colormap), [descriptor, colormap]);
@@ -65,14 +81,42 @@ export function Heatmap({ descriptor, decoded, maxHeight = 420, colormap: chosen
 
   return (
     <div className="heatmap">
-      <div className="heatmap-canvas-wrap" style={{ maxHeight }}>
-        <canvas ref={canvas} className="heatmap-canvas" aria-label="Heatmap" />
+      <div className="heatmap-canvas-wrap" style={{ height: maxHeight }} ref={box}>
+        <canvas
+          ref={canvas}
+          className="heatmap-canvas"
+          aria-label={`Heatmap, ${grid.rows} by ${grid.cols}`}
+          style={fitted(grid, width, maxHeight)}
+        />
       </div>
       <div className="heatmap-footer">
         <ColorBar colormap={colormap} low={range.low} high={range.high} />
+        <span className="heatmap-caption">
+          {grid.rows} × {grid.cols}
+        </span>
       </div>
     </div>
   );
+}
+
+/**
+ * Display size that fits the box while keeping one cell square.
+ *
+ * Previously the canvas simply filled the width, so its height followed the
+ * aspect ratio -- and a tall array became a page-long strip nobody could see at
+ * once. Fitting inside the box instead means the whole matrix is always
+ * visible, and cells stay square rather than being stretched into bars, which
+ * would misrepresent the shape of whatever is in them.
+ */
+function fitted(grid: Grid, available: number, maxHeight: number) {
+  const scale = Math.min(available / grid.cols, maxHeight / grid.rows);
+  // Never below one screen pixel per cell, or a large matrix vanishes; the box
+  // scrolls in that case, which is the honest outcome.
+  const cell = Math.max(scale, 1);
+  return {
+    width: `${Math.round(grid.cols * cell)}px`,
+    height: `${Math.round(grid.rows * cell)}px`,
+  };
 }
 
 interface Grid {

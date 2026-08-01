@@ -420,6 +420,13 @@ def _build_2d(
     max_cells = int(options.get("maxCells") or DEFAULT_MAX_CELLS)
 
     rows, cols = int(arr.shape[0]), int(arr.shape[1])
+
+    # A window on a 2-D array is a range of rows: for the narrow case it is
+    # drawn as lines against row position, and that is what a zoom selects.
+    crop = window_mod.plan(np, None, rows, options)
+    arr = crop.apply(arr)
+    rows = int(arr.shape[0])
+
     view = arr
     truncated = False
     if rows * cols > max_cells:
@@ -435,6 +442,10 @@ def _build_2d(
         )
 
     builder = PayloadBuilder()
+    # Row positions travel once cropped, or the lines would be drawn starting
+    # at zero and the zoom would appear to jump to the beginning.
+    if crop.axis is not None:
+        builder.add("x", "x", "f64", _to_wire(np, crop.axis, "f64", np.float64), len(crop.axis))
     builder.add(
         "value",
         "value",
@@ -456,6 +467,13 @@ def _build_2d(
         columns=None,
         channels=builder.channels,
         decimation=None,
+        # Without this the webview cannot tell that the capture it just received
+        # *is* the window it asked for, and asks again -- forever.
+        window=(
+            None
+            if crop.window is None
+            else WindowInfo(low=crop.window.low, high=crop.window.high, stats=stats)
+        ),
         truncated=truncated,
         # A few columns of many rows is `column_stack`, not a picture: as a
         # heatmap it is a two-pixel-wide smear, so lines are the useful default.

@@ -253,21 +253,20 @@ function columnsOfMatrix(descriptor: Descriptor, decoded: DecodedCapture): Serie
   const [rows, cols] = shape as [number, number];
   const series: Series[] = [];
 
+  // The transmitted positions when the capture was cropped, 0..n-1 otherwise.
+  // Using the former is what keeps a zoomed matrix from appearing to jump back
+  // to row zero.
+  const axis = xValuesFor(decoded, rows);
+
   for (let column = 0; column < Math.min(cols, MAX_SERIES); column++) {
     const values = new Float64Array(rows);
     for (let row = 0; row < rows; row++) {
       values[row] = flat.values[row * cols + column] as number;
     }
-    series.push({ label: `col ${column}`, values, x: positions(rows) });
+    series.push({ label: `col ${column}`, values, x: axis });
   }
 
   return series;
-}
-
-function positions(length: number): Float64Array {
-  const values = new Float64Array(length);
-  for (let i = 0; i < length; i++) values[i] = i;
-  return values;
 }
 
 /**
