@@ -3,6 +3,7 @@ import type {
   Descriptor,
   PaneSpec,
   ResolvedCapture,
+  SessionState,
 } from "@python-debug-visualizer/protocol";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { type DecodedCapture, decodeChannels } from "../decode";
@@ -21,6 +22,7 @@ interface Props {
   /** How far back the shown capture is; 0 is the newest. */
   offset: number;
   pinned: ResolvedCapture | undefined;
+  session: SessionState;
   error: CaptureError | undefined;
   busy: boolean;
   onSeek(offset: number): void;
@@ -34,6 +36,7 @@ export function Pane({
   history,
   offset,
   pinned,
+  session,
   error,
   busy,
   onSeek,
@@ -98,7 +101,7 @@ export function Pane({
       <div className={busy || stale ? "pane-body busy" : "pane-body"}>
         {error && <ErrorCard error={error} paneId={pane.id} />}
 
-        {!error && !capture && <p className="empty-state">Waiting for the debugger to stop…</p>}
+        {!error && !capture && <p className="empty-state">{whyNothingYet(session)}</p>}
 
         {capture && decoded && (
           <VizBody
@@ -132,6 +135,28 @@ export function Pane({
       </div>
     </section>
   );
+}
+
+/**
+ * Why this pane is empty.
+ *
+ * "Nothing here" has several unrelated causes, and a single message for all of
+ * them turns a two-second fix into a bug report. The session state is the
+ * discriminator, so it is what gets said.
+ */
+function whyNothingYet(session: SessionState): string {
+  switch (session.status) {
+    case "no-session":
+      return "No debug session yet. Start one and pause to evaluate this expression.";
+    case "unsupported":
+      return `This extension evaluates Python expressions, and the active session is "${session.sessionType}".`;
+    case "running":
+      return "The debugger is running. This will be evaluated the next time it stops.";
+    case "stopped":
+      return session.runtimeError
+        ? `The visualizer runtime could not be installed: ${session.runtimeError}`
+        : "Evaluating…";
+  }
 }
 
 /** Renders whichever visualization the descriptor and the user's choice select. */

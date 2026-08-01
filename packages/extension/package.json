@@ -91,7 +91,7 @@
           "type": "number",
           "default": 20,
           "minimum": 0,
-          "description": "Number of past captures kept per expression for the history scrubber."
+          "description": "Past captures kept per expression for the history scrubber. The current value is always shown regardless."
         }
       }
     }

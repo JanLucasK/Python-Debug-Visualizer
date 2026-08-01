@@ -64,7 +64,12 @@ export type ExtensionToWebview =
       type: "init";
       panes: PaneSpec[];
       session: SessionState;
-      /** Captures kept per pane for the history scrubber; 0 disables it. */
+      /**
+       * Captures kept per pane for the history scrubber.
+       *
+       * The newest capture is always kept regardless: it is the value being
+       * displayed, not history.
+       */
       historyDepth: number;
     }
   | { type: "session"; session: SessionState }
