@@ -16,6 +16,8 @@ much better to find that out here than in a bug report.
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 import socket
 import subprocess
@@ -86,9 +88,17 @@ def debug_session(bootstrap_expression):
         process.wait(timeout=30)
 
 
-def capture(client, frame_id, expression, context="clipboard", raw_string=True):
+#: Forces everything through the evaluate response rather than the side
+#: channel. These tests are about how much a debug adapter will carry, so the
+#: payload has to actually be in it.
+INLINE_ONLY = {"transport": {"threshold": 1 << 40}}
+
+
+def capture(client, frame_id, expression, context="clipboard", raw_string=True, **options):
+    settings = {**INLINE_ONLY, **options}
+    encoded = base64.b64encode(json.dumps(settings).encode("utf-8")).decode("ascii")
     response = client.evaluate(
-        f'__import__("_pdv").capture({expression})',
+        f'__import__("_pdv").capture({expression}, "{encoded}")',
         frame_id,
         context=context,
         raw_string=raw_string,

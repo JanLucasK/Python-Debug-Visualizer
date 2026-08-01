@@ -16,7 +16,7 @@ import json
 import time
 from typing import Any, Dict
 
-from . import envelope
+from . import envelope, transport
 from .errors import CaptureError, describe_exception
 from .registry import registry
 from .version import PROTOCOL_VERSION
@@ -52,20 +52,20 @@ def capture(value: Any, options_b64: str = "", x: Any = _NO_X) -> str:
                 "No adapter could handle a value of type {!r}.".format(type(value).__name__),
             )
         result = adapter.build(value, options)
-        payload = result.payload
+        # Large payloads leave by a side channel; see _pdv.transport. What comes
+        # back is the descriptor of the route taken and whatever still has to
+        # ride inside the envelope.
+        payload_descriptor, inline = transport.deliver(result.payload, options)
+
         document: Dict[str, Any] = {
             "v": PROTOCOL_VERSION,
             "ok": True,
             "descriptor": result.descriptor.to_dict(),
-            "payload": (
-                {"encoding": "inline", "byteLength": len(payload)}
-                if payload
-                else {"encoding": "none"}
-            ),
+            "payload": payload_descriptor,
             "warnings": list(result.warnings),
             "elapsedMs": _elapsed_ms(started),
         }
-        return envelope.encode(document, payload)
+        return envelope.encode(document, inline)
     except Exception as exc:  # noqa: BLE001 - deliberately broad; see module docstring
         return _error_envelope(exc)
 

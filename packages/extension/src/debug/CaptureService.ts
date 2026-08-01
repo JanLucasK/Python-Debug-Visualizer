@@ -1,3 +1,4 @@
+import { readFile, unlink } from "node:fs/promises";
 import {
   type CaptureError,
   PROTOCOL_VERSION,
@@ -7,6 +8,7 @@ import {
   captureResponseSchema,
 } from "@python-debug-visualizer/protocol";
 import { log } from "../log";
+import type { PayloadServer } from "../transport/PayloadServer";
 import type { Bootstrapper } from "./Bootstrapper";
 import { EvaluateError, evaluate } from "./Evaluator";
 import type { SessionTracker } from "./SessionTracker";
@@ -34,10 +36,14 @@ export interface CaptureRequest {
   sequence: number;
 }
 
+/** How long the debuggee has to deliver a payload it said it sent. */
+const PAYLOAD_TIMEOUT_MS = 30_000;
+
 export class CaptureService {
   constructor(
     private readonly tracker: SessionTracker,
     private readonly bootstrapper: Bootstrapper,
+    private readonly payloads: PayloadServer,
   ) {}
 
   async capture({ expression, viz, options, sequence }: CaptureRequest): Promise<ResolvedCapture> {
@@ -63,7 +69,25 @@ export class CaptureService {
       });
     }
 
-    const call = buildCaptureExpression(expression, viz, options);
+    // The listener and its token are prepared *before* evaluating, because the
+    // debuggee can connect and finish sending while the evaluate response is
+    // still in flight. Registering afterwards would lose that race now and
+    // then, which is the worst way for it to fail.
+    let port = 0;
+    try {
+      port = await this.payloads.ensureListening();
+    } catch (cause) {
+      log.warn(`No payload listener; large captures fall back to a file or inline. ${cause}`);
+    }
+    const reservation = port ? this.payloads.expect(0, PAYLOAD_TIMEOUT_MS) : undefined;
+    // Nothing awaits this unless the runtime says it used the socket, and an
+    // unobserved rejection would otherwise be reported as unhandled.
+    reservation?.bytes.catch(() => undefined);
+
+    const call = buildCaptureExpression(expression, viz, options, {
+      port,
+      token: reservation?.token,
+    });
 
     let raw: string;
     try {
@@ -73,6 +97,7 @@ export class CaptureService {
         frameId: context.frameId,
       });
     } catch (cause) {
+      if (reservation) this.payloads.cancel(reservation.token);
       // An evaluate failure here is almost always the user's expression not
       // compiling or a name not existing, so report it as such rather than as
       // an internal error.
@@ -123,15 +148,69 @@ export class CaptureService {
     }
 
     const { descriptor, warnings, elapsedMs, payload } = parsed.data;
+
+    if (payload.encoding !== "socket" && reservation) {
+      this.payloads.cancel(reservation.token);
+    }
+
+    let bytes: Uint8Array | null;
+    try {
+      bytes = await this.resolvePayload(payload, decoded.payload, reservation?.bytes);
+    } catch (cause) {
+      throw new CaptureFailure({
+        type: "TransportError",
+        message: cause instanceof Error ? cause.message : String(cause),
+        traceback: null,
+      });
+    }
+
     return {
       expression,
       descriptor,
-      bytes: payload.encoding === "inline" ? decoded.payload : null,
+      bytes,
       warnings,
       elapsedMs,
       capturedAt: Date.now(),
       sequence,
     };
+  }
+
+  /**
+   * The payload bytes, whichever route they took.
+   *
+   * The three encodings exist because no single one works everywhere, and the
+   * runtime picks by size and by what succeeded. The webview never learns which
+   * was used -- it receives bytes -- which is what keeps transport work out of
+   * the UI.
+   */
+  private async resolvePayload(
+    payload: { encoding: string; path?: string },
+    inline: Uint8Array,
+    fromSocket: Promise<Uint8Array> | undefined,
+  ): Promise<Uint8Array | null> {
+    switch (payload.encoding) {
+      case "none":
+        return null;
+      case "inline":
+        return inline;
+      case "socket": {
+        if (!fromSocket) {
+          throw new Error("The runtime used the socket transport without a reservation.");
+        }
+        return await fromSocket;
+      }
+      case "file": {
+        if (!payload.path) throw new Error("The runtime reported a file payload with no path.");
+        const contents = await readFile(payload.path);
+        // Removed as soon as it is read. The runtime also sweeps stale files,
+        // but that is a backstop for captures nobody collected, not a licence
+        // to leave them lying around.
+        void unlink(payload.path).catch(() => undefined);
+        return new Uint8Array(contents);
+      }
+      default:
+        throw new Error(`Unknown payload encoding ${payload.encoding}.`);
+    }
   }
 }
 
@@ -148,6 +227,7 @@ function buildCaptureExpression(
   expression: string,
   viz: VizKind | "auto",
   options: VizOptions,
+  transport: { port: number; token: string | undefined },
 ): string {
   const runtimeOptions: Record<string, unknown> = {};
   // Omitted for "auto" so the adapter picks, since it is the side that just
@@ -156,6 +236,9 @@ function buildCaptureExpression(
   if (options.maxPoints !== undefined) runtimeOptions.maxPoints = options.maxPoints;
   if (options.bins !== undefined) runtimeOptions.bins = options.bins;
   if (options.range !== undefined) runtimeOptions.range = options.range;
+  if (transport.port && transport.token) {
+    runtimeOptions.transport = { port: transport.port, token: transport.token };
+  }
 
   const encoded = Buffer.from(JSON.stringify(runtimeOptions), "utf8").toString("base64");
   const call = `__import__("_pdv").capture(${expression}, "${encoded}"`;

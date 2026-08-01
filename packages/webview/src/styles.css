@@ -106,13 +106,30 @@ button.secondary:hover {
 
 /* --- panes --- */
 
+/*
+ * Panes flow into columns as the panel gets wider, rather than always stacking.
+ *
+ * Driven by available width instead of a column setting, because the width is
+ * what actually changes: this panel gets dragged between a narrow strip beside
+ * the editor and a full-width tab several times an hour, and a fixed column
+ * count is wrong in one of those states whichever number you pick.
+ *
+ * The `min()` keeps a single column when the panel is narrower than one pane,
+ * instead of overflowing horizontally.
+ */
 .panes {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr));
+  align-content: start;
   gap: 12px;
+}
+
+/* The empty state is prose, not a pane, and should not sit in one column. */
+.panes > .empty-state {
+  grid-column: 1 / -1;
 }
 
 .pane {

@@ -62,3 +62,16 @@ def bootstrap_expression() -> str:
 @pytest.fixture
 def np():
     return pytest.importorskip("numpy")
+
+
+@pytest.fixture(autouse=True)
+def keep_payloads_inline(monkeypatch):
+    """Stop unit tests from using the side channel.
+
+    Only the transport tests care which route the bytes take, and every other
+    test taking a large payload out through a temp file would litter the
+    machine and make the suite depend on the filesystem for no reason.
+    """
+    from _pdv import transport
+
+    monkeypatch.setattr(transport, "DEFAULT_THRESHOLD", 1 << 40)

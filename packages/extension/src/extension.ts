@@ -4,14 +4,16 @@ import { CaptureService } from "./debug/CaptureService";
 import { SessionTracker } from "./debug/SessionTracker";
 import { initLogging, log } from "./log";
 import { VisualizerPanel } from "./panel/VisualizerPanel";
+import { PayloadServer } from "./transport/PayloadServer";
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(initLogging());
 
   const tracker = new SessionTracker();
   const bootstrapper = new Bootstrapper();
-  const captures = new CaptureService(tracker, bootstrapper);
-  context.subscriptions.push(tracker);
+  const payloads = new PayloadServer();
+  const captures = new CaptureService(tracker, bootstrapper, payloads);
+  context.subscriptions.push(tracker, { dispose: () => payloads.dispose() });
 
   context.subscriptions.push(
     vscode.debug.onDidTerminateDebugSession((session) => bootstrapper.forget(session.id)),

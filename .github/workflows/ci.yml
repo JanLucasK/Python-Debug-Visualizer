@@ -66,8 +66,9 @@ jobs:
           cache: pnpm
       - uses: actions/setup-python@v5
         with:
-          # The extension's envelope tests round-trip through the real Python
-          # runtime rather than through a fixture, so Python is needed here too.
+          # The extension's tests round-trip through the real Python runtime
+          # rather than through fixtures -- the envelope decoder and both halves
+          # of the binary transport -- so Python is needed here too.
           python-version: "3.12"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build

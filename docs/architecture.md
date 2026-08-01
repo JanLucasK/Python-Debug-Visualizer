@@ -154,13 +154,30 @@ by what the topology allows.
 
 | | When | Notes |
 |---|---|---|
-| `inline` | below ~48 KB | Rides in the evaluate response. One round trip, works everywhere |
-| `socket` | large payloads | Debuggee dials back to a loopback listener in the extension host. Safe under Remote-SSH and dev containers, because both run on the same machine there |
-| `file` | loopback unavailable | Debuggee and extension host in *different* containers sharing a volume |
+| `inline` | below 64 KB | Rides in the evaluate response. One round trip, works everywhere |
+| `socket` | above that | Debuggee dials a loopback listener in the extension host. Safe under Remote-SSH and dev containers, because both run on the same machine there |
+| `file` | loopback failed | Debuggee and extension host in *different* containers sharing a volume |
 
-Only `inline` exists today; `socket` and `file` arrive in M4. The webview is
-deliberately unaware of all of this — it receives a `ResolvedCapture` with plain
-bytes — so adding transports does not ripple into the UI.
+They are tried in that order and every failure falls through to the next, with
+`inline` as the floor — a slow plot beats no plot, so a transport problem never
+becomes a failed capture.
+
+Two details are load-bearing. The token is reserved *before* the capture is
+evaluated, because the debuggee can connect and finish sending while the
+evaluate response is still in flight; registering afterwards loses that race
+intermittently, which is the worst way for it to fail. And the sender blocks
+until the listener acknowledges, so a discarded socket cannot drop buffered
+bytes — which also means anything driving both sides must not block the event
+loop doing the acknowledging.
+
+Both halves of the framing were written from the same description, and a
+description is not a guarantee: a wrong offset or endianness would produce
+plausible numbers rather than an error. `PayloadServer.test.ts` runs the real
+Python transport against the real listener, up to five megabytes.
+
+The webview is deliberately unaware of all of this — it receives a
+`ResolvedCapture` with plain bytes — which is what kept adding two transports
+from touching the UI at all.
 
 ## Protocol versioning
 
