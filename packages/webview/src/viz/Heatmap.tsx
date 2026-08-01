@@ -93,6 +93,7 @@ export function Heatmap({ descriptor, decoded, maxHeight = 360, colormap: chosen
         <ColorBar colormap={colormap} low={range.low} high={range.high} />
         <span className="heatmap-caption">
           {grid.rows} × {grid.cols}
+          {cellDistortion(grid, width, maxHeight) > 2 && " · cells stretched"}
         </span>
       </div>
     </div>
@@ -100,26 +101,33 @@ export function Heatmap({ descriptor, decoded, maxHeight = 360, colormap: chosen
 }
 
 /**
- * Display size that fits the box while keeping one cell square.
+ * Display size: fill the width, never exceed the box.
  *
- * Previously the canvas simply filled the width, so its height followed the
- * aspect ratio -- and a tall array became a page-long strip nobody could see at
- * once. Fitting inside the box instead means the whole matrix is always
- * visible, and cells stay square rather than being stretched into bars, which
- * would misrepresent the shape of whatever is in them.
+ * Two attempts preceded this. Letting the height follow the aspect ratio turned
+ * a tall array into a page-long strip. Insisting on square cells instead turned
+ * the same array into a two-pixel thread — 5000 rows of 2 columns cannot be
+ * both square and visible.
+ *
+ * So the matrix fills the box, and cells stretch when its shape demands it,
+ * which the caption then says: a stretched cell misrepresents the proportions
+ * of whatever is in it, and that is worth a word rather than a silent lie.
  */
-function fitted(grid: Grid, available: number, maxHeight: number) {
-  const scale = Math.min(available / grid.cols, maxHeight / grid.rows);
-  // Never below one screen pixel per cell, or a large matrix vanishes; the box
-  // scrolls in that case, which is the honest outcome.
-  const cell = Math.max(scale, 1);
-  return {
-    width: `${Math.round(grid.cols * cell)}px`,
-    height: `${Math.round(grid.rows * cell)}px`,
-  };
+export function fitted(grid: Grid, available: number, maxHeight: number) {
+  const width = Math.max(available, 1);
+  const height = Math.min(maxHeight, Math.max((grid.rows * width) / grid.cols, 1));
+  return { width: `${Math.round(width)}px`, height: `${Math.round(height)}px` };
 }
 
-interface Grid {
+/** How far from square the cells end up, as a ratio between the two scales. */
+export function cellDistortion(grid: Grid, available: number, maxHeight: number): number {
+  const size = fitted(grid, available, maxHeight);
+  const cellWidth = Number.parseFloat(size.width) / grid.cols;
+  const cellHeight = Number.parseFloat(size.height) / grid.rows;
+  if (cellWidth === 0 || cellHeight === 0) return 1;
+  return Math.max(cellWidth / cellHeight, cellHeight / cellWidth);
+}
+
+export interface Grid {
   rows: number;
   cols: number;
   values: Float64Array;

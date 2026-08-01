@@ -211,6 +211,8 @@ export interface Series {
   label: string;
   values: Float64Array;
   x: Float64Array;
+  /** Whether the series contains NaN or Inf; see `forPlot`. */
+  hasGaps?: boolean;
   /** Colour slot; lets a pinned series share its counterpart's colour. */
   colorIndex?: number;
   /** Drawn dashed and thinner, so the current data stays in front. */
@@ -225,10 +227,12 @@ export function collectSeries(descriptor: Descriptor, decoded: DecodedCapture): 
     const decodedChannel = decoded.channels.get(channel.name);
     if (!decodedChannel) continue;
 
+    const stats = channel.stats;
     series.push({
       label: labelFor(descriptor, channel.name),
       values: decodedChannel.values,
       x: xValuesFor(decoded, decodedChannel.values.length),
+      hasGaps: stats === null || stats.nanCount + stats.infCount > 0,
     });
   }
 
@@ -263,7 +267,7 @@ function columnsOfMatrix(descriptor: Descriptor, decoded: DecodedCapture): Serie
     for (let row = 0; row < rows; row++) {
       values[row] = flat.values[row * cols + column] as number;
     }
-    series.push({ label: `col ${column}`, values, x: axis });
+    series.push({ label: `col ${column}`, values, x: axis, hasGaps: true });
   }
 
   return series;
@@ -302,13 +306,41 @@ function labelFor(descriptor: Descriptor, channelName: string): string {
  * with gaps where it has no point. The common case — one capture, one x array —
  * skips all of this.
  */
+export /**
+ * A series in the form uPlot needs, with gaps as `null`.
+ *
+ * uPlot tests for a gap with `yVal != null`, which NaN passes -- so it computes
+ * a pixel position from NaN and calls `lineTo(x, NaN)`. That leaves the Path2D
+ * invalid and the browser discards the rest of the stroke, so a single NaN
+ * anywhere silently erases the whole line. Markers still draw, which is why the
+ * data looked present only when few enough points were shown to draw them.
+ *
+ * Float64Array cannot hold null, so a series with gaps has to become a plain
+ * array. Clean series keep the typed array, which is the common case and the
+ * one worth keeping fast.
+ */
+function forPlot(entry: Series): Float64Array | (number | null)[] {
+  if (entry.hasGaps === false) return entry.values;
+
+  let clean = true;
+  for (let i = 0; i < entry.values.length; i++) {
+    if (!Number.isFinite(entry.values[i] as number)) {
+      clean = false;
+      break;
+    }
+  }
+  if (clean) return entry.values;
+
+  return Array.from(entry.values, (value) => (Number.isFinite(value) ? value : null));
+}
+
 export function toPlotData(series: Series[]): uPlot.AlignedData {
   if (series.length === 0) return [[]] as unknown as uPlot.AlignedData;
 
   const reference = series[0]?.x as Float64Array;
   const shared = series.every((s) => s.x === reference || sameAxis(s.x, reference));
   if (shared) {
-    return [reference, ...series.map((s) => s.values)] as unknown as uPlot.AlignedData;
+    return [reference, ...series.map(forPlot)] as unknown as uPlot.AlignedData;
   }
 
   const axis = unionOf(series.map((s) => s.x));
