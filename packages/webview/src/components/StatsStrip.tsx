@@ -36,6 +36,31 @@ export function StatsStrip({ descriptor }: { descriptor: Descriptor }) {
           alert
         />
       )}
+
+      {/*
+        Zooming does not change the numbers above -- they describe the whole
+        value, and that is the only reason they can be trusted. The window's own
+        numbers appear beside them, labelled, so both questions have an answer.
+      */}
+      {descriptor.window && (
+        <>
+          <Stat
+            label="zoom"
+            value={`${formatNumber(descriptor.window.from)} … ${formatNumber(descriptor.window.to)}`}
+            alert
+          />
+          {descriptor.window.stats && (
+            <Stat
+              label="in view"
+              value={
+                `${descriptor.window.stats.count.toLocaleString()} pts, ` +
+                `${formatNumber(descriptor.window.stats.min)}…${formatNumber(descriptor.window.stats.max)}`
+              }
+              alert
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }

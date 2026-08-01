@@ -155,7 +155,17 @@ function buildCaptureExpression(
   if (viz !== "auto") runtimeOptions.viz = viz;
   if (options.maxPoints !== undefined) runtimeOptions.maxPoints = options.maxPoints;
   if (options.bins !== undefined) runtimeOptions.bins = options.bins;
+  if (options.range !== undefined) runtimeOptions.range = options.range;
 
   const encoded = Buffer.from(JSON.stringify(runtimeOptions), "utf8").toString("base64");
-  return `__import__("_pdv").capture(${expression}, "${encoded}")`;
+  const call = `__import__("_pdv").capture(${expression}, "${encoded}"`;
+
+  // The x axis travels as a real argument rather than inside the options,
+  // because it is data: forcing an array through JSON would cost the precision
+  // and the size the binary channels exist to protect.
+  const axis = options.xSource;
+  if (axis !== undefined && axis !== "index" && axis.trim().length > 0) {
+    return `${call}, ${axis})`;
+  }
+  return `${call})`;
 }

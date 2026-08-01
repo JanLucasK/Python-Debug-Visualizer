@@ -8,21 +8,27 @@ import type { VizKind } from "./descriptor";
  */
 export interface VizOptions {
   /**
-   * Where the x axis comes from. `"auto"` lets the descriptor decide (a
-   * DatetimeIndex becomes time, otherwise position). Any other string is
-   * evaluated as a second Python expression.
+   * Where the x axis comes from.
+   *
+   * `"index"` uses the value's own index or position. Anything else is
+   * evaluated as a second Python expression in the same frame, so
+   * `prices["volume"]` plots one column against another.
    */
-  xSource?: "auto" | "index" | "position" | (string & {});
+  xSource?: "index" | (string & {});
   logX?: boolean;
   logY?: boolean;
-  /** Colormap name for heatmap/image, e.g. "viridis". */
+  /** Colormap name for heatmap, e.g. "viridis". */
   colormap?: string;
   /** Histogram bin count; unset means Freedman-Diaconis. */
   bins?: number;
   /** Upper bound on transferred points before decimation kicks in. */
   maxPoints?: number;
-  /** Column/series names to show; unset means all numeric ones. */
-  series?: string[];
+  /**
+   * Restricts the capture to a window of the x axis, in the units the webview
+   * received. Set when zooming, so the runtime can decimate within the visible
+   * range instead of across the whole value.
+   */
+  range?: [number, number];
 }
 
 export interface PaneSpec {
@@ -57,6 +63,13 @@ export type WebviewToExtension =
   | { type: "updatePane"; pane: PaneSpec }
   | { type: "removePane"; paneId: string }
   | { type: "refresh"; paneId?: string }
+  /**
+   * Re-capture within a zoomed x range, so the runtime can spend the point
+   * budget inside the visible window instead of across the whole value.
+   *
+   * `range` of null means the user zoomed back out.
+   */
+  | { type: "zoom"; paneId: string; range: [number, number] | null }
   | { type: "revealTraceback"; paneId: string };
 
 export type ExtensionToWebview =

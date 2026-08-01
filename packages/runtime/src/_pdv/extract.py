@@ -22,16 +22,27 @@ from .registry import registry
 from .version import PROTOCOL_VERSION
 
 
-def capture(value: Any, options_b64: str = "") -> str:
+#: Sentinel for "no x expression given", since None is a legitimate value.
+_NO_X = object()
+
+
+def capture(value: Any, options_b64: str = "", x: Any = _NO_X) -> str:
     """Extract ``value`` and return a repr-safe envelope string.
 
     ``options_b64`` is base64-encoded JSON rather than plain JSON for the same
     reason the response is base64: the call is assembled into a Python
     expression as source text, and base64 is the only encoding guaranteed to
     survive that without a quoting layer.
+
+    ``x`` is a second value to use as the horizontal axis, evaluated by the
+    caller in the same frame. It is passed as a real argument rather than named
+    inside the options, because it is data rather than configuration and must
+    not be forced through JSON.
     """
     started = time.perf_counter()
     options = _decode_options(options_b64)
+    if x is not _NO_X:
+        options["_x"] = x
 
     try:
         adapter = registry.resolve(value)

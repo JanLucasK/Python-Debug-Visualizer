@@ -9,9 +9,11 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import { type DecodedCapture, decodeChannels } from "../decode";
 import type { CaptureSide } from "../diff";
 import { availableViz, resolveViz } from "../viz";
+import { Heatmap } from "../viz/Heatmap";
 import { LinePlot } from "../viz/LinePlot";
 import { post } from "../vscode";
 import { HistoryBar } from "./HistoryBar";
+import { OptionsBar } from "./OptionsBar";
 import { StatsStrip } from "./StatsStrip";
 
 interface Props {
@@ -65,6 +67,8 @@ export function Pane({
   // answer to the expression now in the header.
   const stale = capture !== undefined && capture.expression !== pane.expression;
 
+  const activeViz = capture ? resolveViz(capture.descriptor, pane.viz)?.kind : undefined;
+
   return (
     <section className="pane">
       <header className="pane-header">
@@ -97,6 +101,9 @@ export function Pane({
       </header>
 
       {capture && <StatsStrip descriptor={capture.descriptor} />}
+      {capture && activeViz && (
+        <OptionsBar pane={pane} descriptor={capture.descriptor} viz={activeViz} />
+      )}
 
       <div className={busy || stale ? "pane-body busy" : "pane-body"}>
         {error && <ErrorCard error={error} paneId={pane.id} />}
@@ -105,9 +112,9 @@ export function Pane({
 
         {capture && decoded && (
           <VizBody
+            pane={pane}
             descriptor={capture.descriptor}
             decoded={decoded}
-            viz={pane.viz}
             reference={pinnedSide}
           />
         )}
@@ -161,32 +168,40 @@ function whyNothingYet(session: SessionState): string {
 
 /** Renders whichever visualization the descriptor and the user's choice select. */
 function VizBody({
+  pane,
   descriptor,
   decoded,
-  viz,
   reference,
 }: {
+  pane: PaneSpec;
   descriptor: Descriptor;
   decoded: DecodedCapture;
-  viz: PaneSpec["viz"];
   reference: CaptureSide | undefined;
 }) {
-  const definition = resolveViz(descriptor, viz);
+  const definition = resolveViz(descriptor, pane.viz);
   if (!definition) {
     return <pre className="object-preview">{descriptor.preview}</pre>;
   }
 
-  // Only the line and scatter renderers can meaningfully overlay a second
-  // capture. The rest ignore it rather than pretending to compare.
-  if (reference && (definition.kind === "line" || definition.kind === "scatter")) {
+  // Line and scatter are driven directly rather than through the registry's
+  // component, because they take options the generic interface does not carry:
+  // log scales, an overlaid reference, and the zoom callback.
+  if (definition.kind === "line" || definition.kind === "scatter") {
     return (
       <LinePlot
         descriptor={descriptor}
         decoded={decoded}
         mode={definition.kind === "scatter" ? "scatter" : "line"}
         reference={reference}
+        logX={pane.options.logX === true}
+        logY={pane.options.logY === true}
+        onZoom={(range) => post({ type: "zoom", paneId: pane.id, range })}
       />
     );
+  }
+
+  if (definition.kind === "heatmap") {
+    return <Heatmap descriptor={descriptor} decoded={decoded} colormap={pane.options.colormap} />;
   }
 
   const Component = definition.component;

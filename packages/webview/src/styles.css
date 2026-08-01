@@ -477,3 +477,60 @@ button.secondary:hover {
 .icon-button:disabled:hover {
   background: transparent;
 }
+
+/* --- per-pane options --- */
+
+.options-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 8px;
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.option-field,
+.option-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.option-field input,
+.option-field select {
+  padding: 1px 4px;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+}
+
+.option-field input[type="number"] {
+  width: 6em;
+}
+
+.option-axis input {
+  width: 12em;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.option-field input:focus,
+.option-field select:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+/* Zoom is a mode; its way out is coloured like the state it undoes. */
+.option-reset {
+  color: var(--vscode-editorWarning-foreground);
+}
+
+.option-note {
+  margin-left: auto;
+  color: var(--vscode-editorWarning-foreground);
+}

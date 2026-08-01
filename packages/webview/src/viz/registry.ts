@@ -20,13 +20,6 @@ export interface VizDefinition {
    * moment one of them was selected, leaving no way back.
    */
   available(descriptor: Descriptor): boolean;
-  /**
-   * Whether selecting this kind requires re-asking Python.
-   *
-   * True when the visualization needs channels the current capture does not
-   * carry, which is what tells the extension a re-capture is due.
-   */
-  needsOwnCapture?: boolean;
   component: ComponentType<VizProps>;
 }
 

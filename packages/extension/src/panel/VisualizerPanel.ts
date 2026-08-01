@@ -94,12 +94,18 @@ export class VisualizerPanel implements vscode.Disposable {
         const before = this.store.update(message.pane);
         this.post({ type: "panes", panes: this.store.list() });
 
-        // Editing the expression asks a different question, so it is answered
-        // even for a frozen pane -- otherwise freezing would silently swallow
-        // the edit. Merely toggling `frozen` is not a new question, and must
-        // not re-evaluate: that is the whole point of freezing.
-        const rewritten = before !== undefined && before.expression !== message.pane.expression;
-        await this.refresh(message.pane, { force: rewritten });
+        // A different expression, a different visualization or different
+        // options are all new questions, and are answered even for a frozen
+        // pane -- otherwise freezing would silently swallow the change. Some
+        // visualizations are reductions Python computes, so the choice has to
+        // reach it. Merely toggling `frozen` is not a new question and must not
+        // re-evaluate: that is the whole point of freezing.
+        const asksSomethingNew =
+          before !== undefined &&
+          (before.expression !== message.pane.expression ||
+            before.viz !== message.pane.viz ||
+            JSON.stringify(before.options) !== JSON.stringify(message.pane.options));
+        await this.refresh(message.pane, { force: asksSomethingNew });
         break;
       }
       case "removePane":
@@ -112,6 +118,21 @@ export class VisualizerPanel implements vscode.Disposable {
           ? this.store.list().filter((pane) => pane.id === message.paneId)
           : this.store.list();
         await Promise.all(panes.map((pane) => this.refresh(pane, { force: true })));
+        break;
+      }
+      case "zoom": {
+        const pane = this.store.list().find((candidate) => candidate.id === message.paneId);
+        if (!pane) break;
+
+        // Stored on the pane rather than held aside, so the zoom survives the
+        // next debugger step -- otherwise stepping while zoomed in would throw
+        // the user back out to the full range on every stop.
+        const zoomed: PaneSpec = {
+          ...pane,
+          options: { ...pane.options, range: message.range ?? undefined },
+        };
+        this.store.update(zoomed);
+        await this.refresh(zoomed, { force: true });
         break;
       }
       case "revealTraceback":

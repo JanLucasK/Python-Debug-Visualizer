@@ -24,6 +24,7 @@ function capture(sequence: number): ResolvedCapture {
       columns: null,
       channels: [],
       decimation: null,
+      window: null,
       truncated: false,
       suggestedViz: ["line"],
     },

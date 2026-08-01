@@ -1,12 +1,20 @@
 import type { Descriptor } from "@python-debug-visualizer/protocol";
-import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import type { DecodedCapture } from "../decode";
-import { type ColormapName, DIVERGING_COLORMAPS, lookupTable, sampleColormap } from "./colormaps";
+import {
+  COLORMAP_NAMES,
+  type ColormapName,
+  DIVERGING_COLORMAPS,
+  lookupTable,
+  sampleColormap,
+} from "./colormaps";
 
 interface Props {
   descriptor: Descriptor;
   decoded: DecodedCapture;
   maxHeight?: number;
+  /** From the pane's options, so the choice survives a debugger step. */
+  colormap?: string;
 }
 
 /** Non-finite cells get their own colour instead of being folded into the range. */
@@ -21,9 +29,9 @@ const NON_FINITE_RGB: readonly [number, number, number] = [120, 120, 120];
  * staying a single hard square is the entire reason to look at a heatmap while
  * debugging.
  */
-export function Heatmap({ descriptor, decoded, maxHeight = 420 }: Props) {
+export function Heatmap({ descriptor, decoded, maxHeight = 420, colormap: chosen }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [colormap, setColormap] = useState<ColormapName>(defaultColormap(descriptor));
+  const colormap = isColormap(chosen) ? chosen : defaultColormap(descriptor);
 
   const grid = useMemo(() => collectGrid(descriptor, decoded), [descriptor, decoded]);
   const range = useMemo(() => resolveRange(descriptor, colormap), [descriptor, colormap]);
@@ -62,22 +70,6 @@ export function Heatmap({ descriptor, decoded, maxHeight = 420 }: Props) {
       </div>
       <div className="heatmap-footer">
         <ColorBar colormap={colormap} low={range.low} high={range.high} />
-        <select
-          className="viz-option"
-          value={colormap}
-          aria-label="Colormap"
-          onChange={(event) =>
-            setColormap((event.target as HTMLSelectElement).value as ColormapName)
-          }
-        >
-          {(["viridis", "magma", "plasma", "blues", "coolwarm", "gray"] as ColormapName[]).map(
-            (name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ),
-          )}
-        </select>
       </div>
     </div>
   );
@@ -127,6 +119,11 @@ function resolveRange(descriptor: Descriptor, colormap: ColormapName): Range | u
     return { low: stats.min - 0.5, high: stats.max + 0.5 };
   }
   return { low: stats.min, high: stats.max };
+}
+
+/** Persisted options are untrusted strings; an unknown name falls back. */
+function isColormap(value: string | undefined): value is ColormapName {
+  return value !== undefined && (COLORMAP_NAMES as string[]).includes(value);
 }
 
 function defaultColormap(descriptor: Descriptor): ColormapName {

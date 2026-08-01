@@ -40,6 +40,7 @@ function descriptor(channels: Channel[]): Descriptor {
     columns: null,
     channels,
     decimation: null,
+    window: null,
     truncated: false,
     suggestedViz: [],
   };

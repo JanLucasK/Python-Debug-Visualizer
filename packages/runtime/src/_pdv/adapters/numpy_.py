@@ -12,8 +12,9 @@ import math
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
+from .. import window as window_mod
 from ..codec import PayloadBuilder, preview, qualified_type
-from ..descriptor import Capture, Decimation, Descriptor, NumericStats
+from ..descriptor import Capture, Decimation, Descriptor, NumericStats, WindowInfo
 from ..errors import CaptureError
 from ..registry import Adapter, Registry
 
@@ -299,23 +300,33 @@ def _build_1d(
     options: Dict[str, Any],
     warnings: List[str],
 ) -> Capture:
+    # Over the complete value, and computed before anything is cropped or
+    # dropped. This number is the one the stats strip shows, and its worth
+    # rests entirely on never moving with the view.
     stats = numeric_stats(np, arr)
     max_points = int(options.get("maxPoints") or DEFAULT_MAX_POINTS)
 
-    indices, method = decimate_indices(np, arr, max_points)
-    values = arr if indices is None else arr[indices]
-    decimation = (
-        None
-        if indices is None
-        else Decimation(method=method or "stride", original_length=int(arr.size), output_length=int(values.size))
+    axis = explicit_axis(np, arr.size, options, warnings)
+    values, axis_values, window = apply_window(np, arr, axis, options)
+
+    indices, method = decimate_indices(np, values, max_points)
+    shown = values if indices is None else values[indices]
+    shown_axis = None if axis_values is None else (
+        axis_values if indices is None else axis_values[indices]
     )
 
     builder = PayloadBuilder()
-    # When decimated, positions are no longer implicit 0..n-1, so they have to
-    # travel with the values or the x axis would be wrong.
-    if indices is not None:
+    # Positions travel whenever they are no longer the implicit 0..n-1: an
+    # explicit axis, a window that starts somewhere other than zero, or
+    # decimation having removed some of them.
+    if shown_axis is not None:
+        builder.add("x", "x", "f64", _to_wire(np, shown_axis, "f64", np.float64), int(shown_axis.size))
+    elif indices is not None:
         builder.add("x", "x", "i64", _to_wire(np, indices, "i64", np.int64), int(indices.size))
-    builder.add("y", "y", wire_dtype, _to_wire(np, values, wire_dtype, cast_to), int(values.size), stats)
+
+    builder.add(
+        "y", "y", wire_dtype, _to_wire(np, shown, wire_dtype, cast_to), int(shown.size), stats
+    )
 
     descriptor = Descriptor(
         kind="ndarray",
@@ -328,11 +339,86 @@ def _build_1d(
         index=None,
         columns=None,
         channels=builder.channels,
-        decimation=decimation,
+        decimation=(
+            None
+            if indices is None
+            else Decimation(
+                method=method or "stride",
+                original_length=int(values.size),
+                output_length=int(shown.size),
+            )
+        ),
+        window=(
+            None
+            if window is None
+            else WindowInfo(low=window.low, high=window.high, stats=numeric_stats(np, values))
+        ),
         truncated=False,
         suggested_viz=["line", "histogram", "scatter"] if time_unit is None else ["line"],
     )
     return Capture(descriptor=descriptor, payload=builder.build(), warnings=warnings)
+
+
+def explicit_axis(np: Any, length: int, options: Dict[str, Any], warnings: List[str]) -> Any:
+    """A user-supplied horizontal axis, or None to use positions.
+
+    A mismatched length is reported and ignored rather than being truncated or
+    padded to fit: pairing the wrong x with the wrong y produces a plot that is
+    wrong in a way nobody can see.
+    """
+    supplied = options.get("_x")
+    if supplied is None:
+        return None
+
+    vector = _as_axis(np, supplied)
+    if vector is None:
+        warnings.append("The x expression is not a flat sequence of numbers; using positions.")
+        return None
+    if vector.size != length:
+        warnings.append(
+            "The x expression has {:,} values but the data has {:,}; using positions.".format(
+                vector.size, length
+            )
+        )
+        return None
+    return vector
+
+
+def _as_axis(np: Any, value: Any) -> Any:
+    """Anything array-like and numeric, as float64."""
+    if hasattr(value, "to_numpy"):  # pandas Series or Index
+        value = value.to_numpy()
+    if isinstance(value, np.ndarray):
+        if value.ndim != 1:
+            return None
+        if value.dtype.kind == "M":
+            return value.astype("datetime64[ms]").view(np.int64).astype(np.float64)
+        if value.dtype.kind not in ("f", "i", "u", "b"):
+            return None
+        return value.astype(np.float64, copy=False)
+    if isinstance(value, (list, tuple, range)):
+        numbers = window_mod.as_float_list(list(value))
+        return None if numbers is None else np.asarray(numbers, dtype=np.float64)
+    return None
+
+
+def apply_window(np: Any, arr: Any, axis: Any, options: Dict[str, Any]):
+    """Crop to the requested window, before decimation rather than after.
+
+    Cropping afterwards would leave a zoomed view holding whatever few points
+    survived the reduction of the *whole* series -- narrower, but no more
+    detailed, which is backwards from what zooming is for.
+    """
+    window = window_mod.requested_window(options)
+    if window is None:
+        return arr, axis, None
+
+    if axis is None:
+        low, high = window_mod.slice_positions(int(arr.size), window)
+        return arr[low:high], np.arange(low, high, dtype=np.float64), window
+
+    mask = window_mod.mask_for(np, axis, window)
+    return arr[mask], axis[mask], window
 
 
 def _build_2d(

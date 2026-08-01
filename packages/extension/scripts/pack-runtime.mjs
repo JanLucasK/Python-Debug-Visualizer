@@ -70,6 +70,27 @@ const compress = (text) => deflateSync(Buffer.from(text, "utf8"), { level: 9 }).
 const runtimeVersion = readRuntimeVersion();
 const protocolVersion = readProtocolVersion();
 
+/**
+ * The two protocol constants must match, and until now that was only noticed at
+ * runtime -- as a refused capture in front of a user. Checking it while packing
+ * turns a support question into a failed build.
+ */
+function assertProtocolsAgree() {
+  const declared = readFileSync(
+    resolve(extensionRoot, "..", "protocol", "src", "descriptor.ts"),
+    "utf8",
+  );
+  const match = declared.match(/export const PROTOCOL_VERSION\s*=\s*(\d+)/);
+  if (!match) throw new Error("PROTOCOL_VERSION not found in protocol/src/descriptor.ts");
+  if (Number(match[1]) !== protocolVersion) {
+    throw new Error(
+      `Protocol mismatch: Python says ${protocolVersion}, TypeScript says ${match[1]}. Update both packages/runtime/src/_pdv/version.py and packages/protocol/src/descriptor.ts.`,
+    );
+  }
+}
+
+assertProtocolsAgree();
+
 const sources = JSON.stringify(collectSources());
 
 /**
@@ -101,7 +122,6 @@ export const RUNTIME_VERSION = ${JSON.stringify(runtimeVersion)};
 
 /** Version plus a hash of the packed sources; changes whenever the code does. */
 export const RUNTIME_BUILD = ${JSON.stringify(runtimeBuild)};
-export const RUNTIME_PROTOCOL_VERSION = ${protocolVersion};
 
 /** Single expression that installs the runtime into the debuggee's sys.modules. */
 export const BOOTSTRAP_EXPRESSION = ${JSON.stringify(expression)};

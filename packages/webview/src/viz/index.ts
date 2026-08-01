@@ -55,8 +55,6 @@ registerViz({
   // Any numeric value can be binned, including a 2-D one -- the runtime
   // flattens it first.
   available: hasNumericData,
-  // Bins are not points: choosing this asks Python for a different capture.
-  needsOwnCapture: true,
   component: Histogram,
 });
 

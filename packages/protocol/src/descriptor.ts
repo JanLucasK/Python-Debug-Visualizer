@@ -75,6 +75,20 @@ export const decimationSchema = z.object({
 });
 export type Decimation = z.infer<typeof decimationSchema>;
 
+/**
+ * The visible slice of the x axis, when the capture was restricted to one.
+ *
+ * Its statistics are separate from `Descriptor.stats` on purpose: those always
+ * describe the complete value, and zooming must not quietly redefine them. The
+ * property that makes them trustworthy is that they do not move with the view.
+ */
+export const windowSchema = z.object({
+  from: z.number(),
+  to: z.number(),
+  stats: numericStatsSchema.nullable(),
+});
+export type WindowInfo = z.infer<typeof windowSchema>;
+
 export const timeUnitSchema = z.enum(["s", "ms", "us", "ns"]);
 export type TimeUnit = z.infer<typeof timeUnitSchema>;
 
@@ -160,6 +174,8 @@ export const descriptorSchema = z.object({
   columns: z.array(columnInfoSchema).nullable(),
   channels: z.array(channelSchema),
   decimation: decimationSchema.nullable(),
+  /** Set when the capture covers only part of the x axis, after zooming. */
+  window: windowSchema.nullable(),
   /** True when parts of the value were dropped entirely (e.g. columns beyond a cap). */
   truncated: z.boolean(),
   /** Adapter's ranked suggestions; the webview may override. */

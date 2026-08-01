@@ -65,11 +65,18 @@ function sanitize(stored: unknown): PaneSpec[] {
     if (typeof entry !== "object" || entry === null) continue;
     const candidate = entry as Partial<PaneSpec>;
     if (typeof candidate.id !== "string" || typeof candidate.expression !== "string") continue;
+    const options =
+      typeof candidate.options === "object" && candidate.options ? { ...candidate.options } : {};
+    // A zoom is a view of one moment, not a property of the expression. Keeping
+    // it across sessions would reopen the pane showing a slice of data that no
+    // longer exists, with no hint as to why.
+    options.range = undefined;
+
     panes.push({
       id: candidate.id,
       expression: candidate.expression,
       viz: candidate.viz ?? "auto",
-      options: typeof candidate.options === "object" && candidate.options ? candidate.options : {},
+      options,
       frozen: candidate.frozen === true,
     });
   }

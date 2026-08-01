@@ -20,6 +20,7 @@ function descriptor(overrides: Partial<Descriptor> = {}): Descriptor {
     columns: null,
     channels: [],
     decimation: null,
+    window: null,
     truncated: false,
     suggestedViz: ["line"],
     ...overrides,

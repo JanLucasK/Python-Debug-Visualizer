@@ -136,6 +136,27 @@ class ColumnInfo:
 
 
 @dataclass
+class WindowInfo:
+    """The visible slice of the x axis, with statistics of its own.
+
+    Kept separate from `Descriptor.stats` on purpose. Those always describe the
+    complete value, and zooming must not quietly redefine what they mean -- the
+    whole reason they are trustworthy is that they never change with the view.
+    """
+
+    low: float
+    high: float
+    stats: Optional[NumericStats] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "from": float(self.low),
+            "to": float(self.high),
+            "stats": self.stats.to_dict() if self.stats else None,
+        }
+
+
+@dataclass
 class Descriptor:
     kind: str
     python_type: str
@@ -148,6 +169,7 @@ class Descriptor:
     columns: Optional[List[ColumnInfo]] = None
     channels: List[Channel] = field(default_factory=list)
     decimation: Optional[Decimation] = None
+    window: Optional[WindowInfo] = None
     truncated: bool = False
     suggested_viz: List[str] = field(default_factory=list)
 
@@ -164,6 +186,7 @@ class Descriptor:
             "columns": [c.to_dict() for c in self.columns] if self.columns is not None else None,
             "channels": [c.to_dict() for c in self.channels],
             "decimation": self.decimation.to_dict() if self.decimation else None,
+            "window": self.window.to_dict() if self.window else None,
             "truncated": bool(self.truncated),
             "suggestedViz": list(self.suggested_viz),
         }

@@ -59,6 +59,7 @@ function side(values: Record<string, number[]>, positions?: number[]): CaptureSi
     columns: null,
     channels,
     decimation: null,
+    window: null,
     truncated: false,
     suggestedViz: ["line"],
   };

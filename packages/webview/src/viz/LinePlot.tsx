@@ -13,6 +13,10 @@ interface Props {
   mode?: "line" | "scatter";
   /** A pinned earlier capture, drawn underneath for comparison. */
   reference?: { descriptor: Descriptor; decoded: DecodedCapture };
+  logX?: boolean;
+  logY?: boolean;
+  /** Called when the user drag-zooms, so the runtime can re-capture the window. */
+  onZoom?: (range: [number, number] | null) => void;
 }
 
 /**
@@ -27,7 +31,16 @@ interface Props {
  * differ by one series option. Splitting them would mean maintaining the axis,
  * theme, resize and rebuild logic twice.
  */
-export function LinePlot({ descriptor, decoded, height = 240, mode = "line", reference }: Props) {
+export function LinePlot({
+  descriptor,
+  decoded,
+  height = 240,
+  mode = "line",
+  reference,
+  logX = false,
+  logY = false,
+  onZoom,
+}: Props) {
   const container = useRef<HTMLDivElement>(null);
   const plot = useRef<uPlot | null>(null);
 
@@ -73,6 +86,11 @@ export function LinePlot({ descriptor, decoded, height = 240, mode = "line", ref
   const latest = useRef(series);
   latest.current = series;
 
+  // Likewise for the zoom callback: a new closure on every render must not
+  // rebuild the plot, which would cancel the very drag that produced it.
+  const zoomHandler = useRef(onZoom);
+  zoomHandler.current = onZoom;
+
   /**
    * Whether the x axis carries timestamps rather than positions.
    *
@@ -99,7 +117,13 @@ export function LinePlot({ descriptor, decoded, height = 240, mode = "line", ref
 
     const build = () => {
       plot.current?.destroy();
-      plot.current = createPlot(element, latest.current, height, mode, timeAxis);
+      plot.current = createPlot(element, latest.current, height, {
+        mode,
+        timeAxis,
+        logX,
+        logY,
+        onZoom: (range) => zoomHandler.current?.(range),
+      });
     };
 
     build();
@@ -118,7 +142,7 @@ export function LinePlot({ descriptor, decoded, height = 240, mode = "line", ref
       plot.current?.destroy();
       plot.current = null;
     };
-  }, [height, structure, mode, timeAxis]);
+  }, [height, structure, mode, timeAxis, logX, logY]);
 
   useEffect(() => {
     if (!plot.current || series.length === 0) return;
@@ -277,12 +301,19 @@ function project(series: Series, axis: Float64Array): (number | null)[] {
   return Array.from(axis, (position) => values.get(position) ?? null);
 }
 
+interface PlotSettings {
+  mode: "line" | "scatter";
+  timeAxis: boolean;
+  logX: boolean;
+  logY: boolean;
+  onZoom(range: [number, number] | null): void;
+}
+
 function createPlot(
   container: HTMLDivElement,
   series: Series[],
   height: number,
-  mode: "line" | "scatter",
-  timeAxis: boolean,
+  { mode, timeAxis, logX, logY, onZoom }: PlotSettings,
 ): uPlot {
   const theme = readTheme();
   const width = container.clientWidth || 600;
@@ -304,7 +335,31 @@ function createPlot(
       drag: { x: true, y: false },
       focus: { prox: 16 },
     },
-    scales: { x: { time: timeAxis } },
+    scales: {
+      // uPlot's distr 3 is logarithmic. Non-positive values have no log, and
+      // uPlot drops them -- which is right, but has to be visible, so the pane
+      // says so alongside.
+      x: { time: timeAxis, ...(logX ? { distr: 3 as const } : {}) },
+      y: logY ? { distr: 3 as const } : {},
+    },
+    hooks: {
+      setScale: [
+        (self: uPlot, key: string) => {
+          if (key !== "x") return;
+          const scale = self.scales.x;
+          const min = scale?.min;
+          const max = scale?.max;
+          if (min === undefined || max === undefined) return;
+          // A full-range scale means the user zoomed back out.
+          const full = self.data[0];
+          const wholeRange =
+            full === undefined ||
+            full.length === 0 ||
+            (min <= (full[0] as number) && max >= (full[full.length - 1] as number));
+          onZoom(wholeRange ? null : [min, max]);
+        },
+      ],
+    },
     axes: [
       { stroke: theme.axis, grid: { stroke: theme.grid, width: 1 }, ticks: { stroke: theme.grid } },
       { stroke: theme.axis, grid: { stroke: theme.grid, width: 1 }, ticks: { stroke: theme.grid } },
