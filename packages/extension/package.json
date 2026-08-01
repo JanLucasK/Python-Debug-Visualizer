@@ -15,6 +15,7 @@
     "type": "git",
     "url": "https://github.com/JanLucasK/Python-Debug-Visualizer.git"
   },
+  "icon": "assets/icon.png",
   "extensionKind": ["workspace"],
   "capabilities": {
     "untrustedWorkspaces": {

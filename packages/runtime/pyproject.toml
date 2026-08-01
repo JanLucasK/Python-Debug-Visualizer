@@ -25,6 +25,8 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "numpy>=1.21", "pandas>=1.3", "debugpy>=1.8"]
+# Only for regenerating the extension icon; see packages/extension/scripts/make-icon.py.
+icon = ["pillow>=10"]
 
 [project.urls]
 Homepage = "https://github.com/JanLucasK/Python-Debug-Visualizer"
