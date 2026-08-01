@@ -103,7 +103,7 @@
     "watch": "pnpm generate && node esbuild.mjs --watch",
     "typecheck": "pnpm generate && tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "package": "vsce package --no-dependencies"
+    "package": "pnpm -w run build && vsce package --no-dependencies"
   },
   "dependencies": {
     "@python-debug-visualizer/protocol": "workspace:*",

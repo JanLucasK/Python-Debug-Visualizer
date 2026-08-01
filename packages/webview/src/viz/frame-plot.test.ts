@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { decodeChannels } from "../decode";
 import { collectTable } from "./DataGrid";
 import { collectSeries, toPlotData } from "./LinePlot";
+import { availableViz, resolveViz } from "./index";
 
 const runtimeSrc = resolve(__dirname, "..", "..", "..", "runtime", "src");
 const venvPython = resolve(__dirname, "..", "..", "..", "..", ".venv", "bin", "python");
@@ -126,5 +127,24 @@ describe("a narrow matrix defaults to lines", () => {
   it("still suggests a heatmap for a genuinely wide matrix", () => {
     const { descriptor } = capture("np.zeros((200, 300))");
     expect(descriptor.suggestedViz[0]).toBe("heatmap");
+  });
+});
+
+describe("what the pane offers for a DataFrame", () => {
+  it("includes a heatmap", () => {
+    // A frame is [rows, columns] like any matrix, and a correlation matrix is a
+    // good heatmap whichever container it arrived in. Withholding it confused a
+    // default with a restriction.
+    const { descriptor } = capture(FRAME);
+    expect(availableViz(descriptor).map((d) => d.kind)).toContain("heatmap");
+  });
+
+  it("still defaults to lines", () => {
+    // Unrelated columns on one colour scale would compare prices against
+    // volumes, so the suggestion stays opinionated even though the option is
+    // available.
+    const { descriptor } = capture(FRAME);
+    expect(resolveViz(descriptor, "auto")?.kind).toBe("line");
+    expect(resolveViz(descriptor, "heatmap")?.kind).toBe("heatmap");
   });
 });
