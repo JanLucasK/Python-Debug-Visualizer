@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 let channel: vscode.LogOutputChannel | undefined;
 
 export function initLogging(): vscode.LogOutputChannel {
-  channel ??= vscode.window.createOutputChannel("Python Debug Visualizer", { log: true });
+  channel ??= vscode.window.createOutputChannel("Python Debug Plots", { log: true });
   return channel;
 }
 

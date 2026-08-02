@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "python-debug-visualizer-runtime"
+name = "python-debug-plots-runtime"
 version = "0.0.1"
-description = "In-process value extraction for the Python Debug Visualizer VS Code extension"
+description = "In-process value extraction for the Python Debug Plots VS Code extension"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }

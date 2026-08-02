@@ -22,25 +22,25 @@ export function activate(context: vscode.ExtensionContext): void {
   const open = () => VisualizerPanel.show(context, tracker, captures);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("pythonDebugVisualizer.open", open),
+    vscode.commands.registerCommand("pythonDebugPlots.open", open),
 
-    vscode.commands.registerCommand("pythonDebugVisualizer.refresh", () => {
+    vscode.commands.registerCommand("pythonDebugPlots.refresh", () => {
       open();
       void vscode.commands.executeCommand("workbench.action.webview.reloadWebviewAction");
     }),
 
-    vscode.commands.registerCommand("pythonDebugVisualizer.visualizeSelection", () => {
+    vscode.commands.registerCommand("pythonDebugPlots.plotSelection", () => {
       const expression = selectedExpression();
       if (!expression) {
         void vscode.window.showInformationMessage(
-          "Select a Python expression to visualize, or open the visualizer and type one.",
+          "Select a Python expression to plot, or open the plot panel and type one.",
         );
         return;
       }
       open().addExpression(expression);
     }),
 
-    vscode.commands.registerCommand("pythonDebugVisualizer.visualizeVariable", (item: unknown) => {
+    vscode.commands.registerCommand("pythonDebugPlots.plotVariable", (item: unknown) => {
       const expression = variableExpression(item);
       if (!expression) {
         void vscode.window.showInformationMessage("That variable cannot be re-evaluated by name.");
@@ -50,7 +50,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
-  log.info("Python Debug Visualizer activated");
+  log.info("Python Debug Plots activated");
 }
 
 export function deactivate(): void {

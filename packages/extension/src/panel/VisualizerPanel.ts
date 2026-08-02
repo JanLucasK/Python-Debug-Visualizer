@@ -10,7 +10,7 @@ import type { SessionTracker } from "../debug/SessionTracker";
 import { log } from "../log";
 import { PaneStore } from "./PaneStore";
 
-const VIEW_TYPE = "pythonDebugVisualizer.panel";
+const VIEW_TYPE = "pythonDebugPlots.panel";
 
 export class VisualizerPanel implements vscode.Disposable {
   private static current: VisualizerPanel | undefined;
@@ -33,7 +33,7 @@ export class VisualizerPanel implements vscode.Disposable {
 
     const panel = vscode.window.createWebviewPanel(
       VIEW_TYPE,
-      "Debug Visualizer",
+      "Debug Plots",
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       {
         enableScripts: true,
@@ -82,7 +82,7 @@ export class VisualizerPanel implements vscode.Disposable {
           panes: this.store.list(),
           session: this.tracker.state,
           historyDepth: vscode.workspace
-            .getConfiguration("pythonDebugVisualizer")
+            .getConfiguration("pythonDebugPlots")
             .get<number>("historyDepth", 20),
         });
         await this.refreshAll();
@@ -147,7 +147,7 @@ export class VisualizerPanel implements vscode.Disposable {
   private onSessionChanged(): void {
     this.post({ type: "session", session: this.tracker.state });
     const autoRefresh = vscode.workspace
-      .getConfiguration("pythonDebugVisualizer")
+      .getConfiguration("pythonDebugPlots")
       .get<boolean>("autoRefresh", true);
     if (autoRefresh && this.tracker.context) {
       void this.refreshAll();
@@ -178,7 +178,7 @@ export class VisualizerPanel implements vscode.Disposable {
         viz: pane.viz,
         options: {
           maxPoints: vscode.workspace
-            .getConfiguration("pythonDebugVisualizer")
+            .getConfiguration("pythonDebugPlots")
             .get<number>("maxPoints", 20000),
           ...pane.options,
         },
@@ -233,7 +233,7 @@ export class VisualizerPanel implements vscode.Disposable {
     <meta http-equiv="Content-Security-Policy" content="${csp}" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="${style}" />
-    <title>Debug Visualizer</title>
+    <title>Debug Plots</title>
   </head>
   <body>
     <div id="root"></div>

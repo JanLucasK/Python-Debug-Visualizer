@@ -98,7 +98,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm --filter python-debug-visualizer run package
+      - run: pnpm --filter python-debug-plots run package
       - uses: actions/upload-artifact@v4
         with:
           name: vsix

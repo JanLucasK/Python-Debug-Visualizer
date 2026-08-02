@@ -1,7 +1,7 @@
 # Trying everything out
 
-Run **Debug the demo script**, then open the visualizer with
-`Ctrl+Shift+P` → *Python Debug Visualizer: Open Visualizer*.
+Run **Debug the demo script**, then open the plots with
+`Ctrl+Shift+P` → *Python Debug Plots: Open Plots*.
 
 Two breakpoints in [demo.py](demo.py) are worth using. Both are marked in the
 source:

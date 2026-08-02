@@ -1,4 +1,4 @@
-"""Sample program covering every feature of the Python Debug Visualizer.
+"""Sample program covering every feature of Python Debug Plots.
 
 Run the "Debug the demo script" launch configuration. There are two breakpoints
 worth using, marked below:

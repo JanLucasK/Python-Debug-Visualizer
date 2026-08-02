@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { PaneSpec } from "@python-debug-visualizer/protocol";
 import type * as vscode from "vscode";
 
-const STORAGE_KEY = "pythonDebugVisualizer.panes";
+const STORAGE_KEY = "pythonDebugPlots.panes";
 
 /**
  * The list of expressions being watched, persisted per workspace.

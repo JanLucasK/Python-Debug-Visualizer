@@ -1,4 +1,4 @@
-"""Python Debug Visualizer runtime.
+"""Python Debug Plots runtime.
 
 This package runs *inside the process being debugged*. Two consequences shape
 everything in it:

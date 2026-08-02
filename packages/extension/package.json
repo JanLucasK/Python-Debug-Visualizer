@@ -1,6 +1,6 @@
 {
-  "name": "python-debug-visualizer",
-  "displayName": "Python Debug Visualizer",
+  "name": "python-debug-plots",
+  "displayName": "Python Debug Plots",
   "description": "Plot and inspect NumPy arrays, Pandas DataFrames and tensors live while debugging Python.",
   "version": "0.1.0",
   "publisher": "jlk-tools",
@@ -9,7 +9,18 @@
     "vscode": "^1.89.0"
   },
   "categories": ["Debuggers", "Visualization", "Data Science"],
-  "keywords": ["numpy", "pandas", "plot", "debug", "visualization"],
+  "keywords": [
+    "numpy",
+    "pandas",
+    "plot",
+    "debug",
+    "visualization",
+    "debug visualizer",
+    "dataframe",
+    "tensor",
+    "debugger",
+    "data science"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/JanLucasK/Python-Debug-Visualizer.git"
@@ -27,31 +38,31 @@
   "contributes": {
     "commands": [
       {
-        "command": "pythonDebugVisualizer.open",
-        "title": "Open Visualizer",
-        "category": "Python Debug Visualizer",
+        "command": "pythonDebugPlots.open",
+        "title": "Open Plots",
+        "category": "Python Debug Plots",
         "icon": "$(graph-line)"
       },
       {
-        "command": "pythonDebugVisualizer.visualizeSelection",
-        "title": "Visualize Selection",
-        "category": "Python Debug Visualizer"
+        "command": "pythonDebugPlots.plotSelection",
+        "title": "Plot Selection",
+        "category": "Python Debug Plots"
       },
       {
-        "command": "pythonDebugVisualizer.visualizeVariable",
-        "title": "Visualize",
-        "category": "Python Debug Visualizer"
+        "command": "pythonDebugPlots.plotVariable",
+        "title": "Plot",
+        "category": "Python Debug Plots"
       },
       {
-        "command": "pythonDebugVisualizer.refresh",
+        "command": "pythonDebugPlots.refresh",
         "title": "Refresh",
-        "category": "Python Debug Visualizer",
+        "category": "Python Debug Plots",
         "icon": "$(refresh)"
       }
     ],
     "keybindings": [
       {
-        "command": "pythonDebugVisualizer.visualizeSelection",
+        "command": "pythonDebugPlots.plotSelection",
         "key": "ctrl+alt+v",
         "mac": "cmd+alt+v",
         "when": "editorHasSelection && debugState == stopped"
@@ -60,34 +71,34 @@
     "menus": {
       "debug/variables/context": [
         {
-          "command": "pythonDebugVisualizer.visualizeVariable",
+          "command": "pythonDebugPlots.plotVariable",
           "when": "debugType == debugpy || debugType == python",
           "group": "navigation@10"
         }
       ],
       "editor/context": [
         {
-          "command": "pythonDebugVisualizer.visualizeSelection",
+          "command": "pythonDebugPlots.plotSelection",
           "when": "editorHasSelection && debugState == stopped && editorLangId == python",
           "group": "debug@10"
         }
       ]
     },
     "configuration": {
-      "title": "Python Debug Visualizer",
+      "title": "Python Debug Plots",
       "properties": {
-        "pythonDebugVisualizer.maxPoints": {
+        "pythonDebugPlots.maxPoints": {
           "type": "number",
           "default": 20000,
           "minimum": 100,
           "description": "Points transferred per series before downsampling. Statistics are always computed over the full value regardless of this setting."
         },
-        "pythonDebugVisualizer.autoRefresh": {
+        "pythonDebugPlots.autoRefresh": {
           "type": "boolean",
           "default": true,
           "description": "Re-evaluate expressions each time the debugger stops."
         },
-        "pythonDebugVisualizer.historyDepth": {
+        "pythonDebugPlots.historyDepth": {
           "type": "number",
           "default": 20,
           "minimum": 0,

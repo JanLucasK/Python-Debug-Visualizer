@@ -1,4 +1,4 @@
-# Python Debug Visualizer
+# Python Debug Plots
 
 Plot and inspect NumPy arrays, Pandas DataFrames and tensors **while you are
 stopped in the debugger**. Type an expression, see the data.
@@ -21,12 +21,12 @@ at successive steps, overlaying them, and seeing what moved.
 ## Getting started
 
 1. Start a Python debug session and pause it.
-2. Run **Python Debug Visualizer: Open Visualizer** from the Command Palette.
+2. Run **Python Debug Plots: Open Plots** from the Command Palette.
 3. Type an expression — `prices[-500:]`, `df["close"].values`, `weights`.
 
 You can also select an expression in the editor and press `Ctrl+Alt+V`
 (`Cmd+Alt+V` on macOS), or right-click a variable in the Variables view and
-choose **Visualize**.
+choose **Plot**.
 
 Expressions are re-evaluated every time the debugger stops, so stepping through
 a loop animates the plot. Freeze a pane to hold it still for comparison.
@@ -112,9 +112,9 @@ disk.
 
 | Setting | Default | |
 |---|---|---|
-| `pythonDebugVisualizer.maxPoints` | 20000 | Points transferred per series before downsampling. Statistics ignore this. |
-| `pythonDebugVisualizer.autoRefresh` | true | Re-evaluate expressions each time the debugger stops. |
-| `pythonDebugVisualizer.historyDepth` | 20 | Past captures kept per expression. |
+| `pythonDebugPlots.maxPoints` | 20000 | Points transferred per series before downsampling. Statistics ignore this. |
+| `pythonDebugPlots.autoRefresh` | true | Re-evaluate expressions each time the debugger stops. |
+| `pythonDebugPlots.historyDepth` | 20 | Past captures kept per expression. |
 
 Bin count, point budget, log scales, colormap and the x axis are set per pane,
 in the row under its header — they belong to one question rather than to the

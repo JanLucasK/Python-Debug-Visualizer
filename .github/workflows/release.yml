@@ -67,7 +67,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # The package script builds first, so the artefact cannot be stale.
-      - run: pnpm --filter python-debug-visualizer run package
+      - run: pnpm --filter python-debug-plots run package
 
       - name: Publish to the VS Code Marketplace
         env:
@@ -75,14 +75,14 @@ jobs:
         # `pnpm --filter … exec` already runs inside packages/extension, so the
         # glob is relative to it. Spelling the full path here would have looked
         # for packages/extension/packages/extension/…
-        run: pnpm --filter python-debug-visualizer exec vsce publish --no-dependencies --packagePath *.vsix
+        run: pnpm --filter python-debug-plots exec vsce publish --no-dependencies --packagePath *.vsix
 
       - name: Publish to Open VSX
         # VSCodium, Cursor and Gitpod install from here rather than from the
         # Marketplace, whose terms only cover Microsoft's own builds.
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: pnpm --filter python-debug-visualizer exec ovsx publish *.vsix --pat "$OVSX_PAT"
+        run: pnpm --filter python-debug-plots exec ovsx publish *.vsix --pat "$OVSX_PAT"
 
       - name: Attach the VSIX to the GitHub release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2

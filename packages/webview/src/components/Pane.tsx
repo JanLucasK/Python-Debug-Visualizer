@@ -161,7 +161,7 @@ function whyNothingYet(session: SessionState): string {
       return "The debugger is running. This will be evaluated the next time it stops.";
     case "stopped":
       return session.runtimeError
-        ? `The visualizer runtime could not be installed: ${session.runtimeError}`
+        ? `The Python Debug Plots runtime could not be installed: ${session.runtimeError}`
         : "Evaluating…";
   }
 }

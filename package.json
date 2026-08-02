@@ -16,7 +16,7 @@
     "test:py": "python -m pytest packages/runtime/tests -q",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "package": "pnpm build && pnpm --filter @python-debug-visualizer/extension run package"
+    "package": "pnpm --filter python-debug-plots run package"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

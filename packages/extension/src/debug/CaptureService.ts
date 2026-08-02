@@ -64,7 +64,7 @@ export class CaptureService {
       this.tracker.setRuntimeStatus(false, message);
       throw new CaptureFailure({
         type: "RuntimeUnavailable",
-        message: `Could not install the visualizer runtime in the debuggee: ${message}`,
+        message: `Could not install the Python Debug Plots runtime in the debuggee: ${message}`,
         traceback: null,
       });
     }

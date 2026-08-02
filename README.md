@@ -1,4 +1,4 @@
-# Python Debug Visualizer
+# Python Debug Plots
 
 [![CI](https://github.com/JanLucasK/Python-Debug-Visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/JanLucasK/Python-Debug-Visualizer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
